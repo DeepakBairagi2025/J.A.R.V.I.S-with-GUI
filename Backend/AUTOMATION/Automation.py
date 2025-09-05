@@ -13,6 +13,17 @@ import keyboard # Import keyboard for simulating keyboard events.
 import asyncio # Import asyncio for asynchronous programming.
 import os # Import os for operating system interactions.
 from pathlib import Path # Import Path to resolve project root reliably.
+import re # Import re for normalizing/cleaning commands
+from Backend.TEXT_TO_SPEECH.TextToSpeech import TextToSpeech
+from .utils import extract_title_from_command
+import pyautogui  # For hover/mouse move without clicking
+
+from .ScreenMonitor import (
+    start_screen_monitor,
+    stop_screen_monitor,
+    get_screen_monitor
+)
+
 
 # Resolve project root (two levels up from this file) and load environment variables.
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -164,6 +175,111 @@ def OpenApp(app, sess=requests.session()):
         "aisaver.com": "https://aisaver.com/",
         "magichour": "https://magichour.com/",
         "magichour.com": "https://magichour.com/",
+        'google': 'https://www.google.com',
+        'youtube': 'https://www.youtube.com',
+        'facebook': 'https://www.facebook.com',
+        'twitter': 'https://www.twitter.com',
+        'instagram': 'https://www.instagram.com',
+        'linkedin': 'https://www.linkedin.com',
+        'github': 'https://www.github.com',
+        'stackoverflow': 'https://stackoverflow.com',
+        'reddit': 'https://www.reddit.com',
+        'wikipedia': 'https://www.wikipedia.org',
+        'quora': 'https://www.quora.com',
+        'amazon': 'https://www.amazon.com',
+        'flipkart': 'https://www.flipkart.com',
+        'snapdeal': 'https://www.snapdeal.com',
+        'myntra': 'https://www.myntra.com',
+        'udemy': 'https://www.udemy.com',
+        'coursera': 'https://www.coursera.org',
+        'edx': 'https://www.edx.org',
+        'khanacademy': 'https://www.khanacademy.org',
+        'medium': 'https://medium.com',
+        'netflix': 'https://www.netflix.com',
+        'hotstar': 'https://www.hotstar.com',
+        'primevideo': 'https://www.primevideo.com',
+        'zomato': 'https://www.zomato.com',
+        'swiggy': 'https://www.swiggy.com',
+        'canva': 'https://www.canva.com',
+        'notion': 'https://www.notion.so',
+        'gmail': 'https://mail.google.com',
+        'yahoo': 'https://www.yahoo.com',
+        'duckduckgo': 'https://www.duckduckgo.com',
+        'bing': 'https://www.bing.com',
+        'zoho': 'https://www.zoho.com',
+        'pixabay': 'https://www.pixabay.com',
+        'pexels': 'https://www.pexels.com',
+        'unsplash': 'https://www.unsplash.com',
+        'wordpress': 'https://www.wordpress.com',
+        'blogger': 'https://www.blogger.com',
+        'tumblr': 'https://www.tumblr.com',
+        'trello': 'https://www.trello.com',
+        'dropbox': 'https://www.dropbox.com',
+        'drive': 'https://drive.google.com',
+        'skype': 'https://www.skype.com',
+        'zoom': 'https://zoom.us',
+        'meet': 'https://meet.google.com',
+        'figma': 'https://www.figma.com',
+        'codepen': 'https://codepen.io',
+        'replit': 'https://replit.com',
+        'w3schools': 'https://www.w3schools.com',
+        'geeksforgeeks': 'https://www.geeksforgeeks.org',
+        'tutorialspoint': 'https://www.tutorialspoint.com',
+        'udacity': 'https://www.udacity.com',
+        'futurelearn': 'https://www.futurelearn.com',
+        'javatpoint': 'https://www.javatpoint.com',
+        'crunchyroll': 'https://www.crunchyroll.com',
+        'openai': 'https://www.openai.com',
+        'codeacademy': 'https://www.codecademy.com',
+        'freecodecamp': 'https://www.freecodecamp.org',
+        'codeforces': 'https://codeforces.com',
+        'atcoder': 'https://atcoder.jp',
+        'leetcode': 'https://leetcode.com',
+        'hackerank': 'https://www.hackerrank.com',
+        'hackernews': 'https://news.ycombinator.com',
+        'producthunt': 'https://www.producthunt.com',
+        'techcrunch': 'https://techcrunch.com',
+        'thenextweb': 'https://thenextweb.com',
+        'wired': 'https://www.wired.com',
+        'cnn': 'https://www.cnn.com',
+        'bbc': 'https://www.bbc.com',
+        'ndtv': 'https://www.ndtv.com',
+        'indiatimes': 'https://www.indiatimes.com',
+        'moneycontrol': 'https://www.moneycontrol.com',
+        'groww': 'https://www.groww.in',
+        'zerodha': 'https://www.zerodha.com',
+        'coinmarketcap': 'https://coinmarketcap.com',
+        'tradingview': 'https://www.tradingview.com',
+        'spotify': 'https://www.spotify.com',
+        'soundcloud': 'https://soundcloud.com',
+        'gaana': 'https://gaana.com',
+        'wynk': 'https://wynk.in',
+        'jiosaavn': 'https://www.jiosaavn.com',
+        'telegram': 'https://web.telegram.org',
+        'whatsapp': 'https://web.whatsapp.com',
+        'discord': 'https://discord.com',
+        'tiktok': 'https://www.tiktok.com',
+        'snapchat': 'https://www.snapchat.com',
+        'glassdoor': 'https://www.glassdoor.com',
+        'naukri': 'https://www.naukri.com',
+        'indeed': 'https://www.indeed.com',
+        'monster': 'https://www.monster.com',
+        'internshala': 'https://internshala.com',
+        'timesjobs': 'https://www.timesjobs.com',
+        'freelancer': 'https://www.freelancer.com',
+        'fiverr': 'https://www.fiverr.com',
+        'upwork': 'https://www.upwork.com',
+        'behance': 'https://www.behance.net',
+        'dribbble': 'https://dribbble.com',
+        'envato': 'https://www.envato.com',
+        'themeforest': 'https://themeforest.net',
+        'githubpages': 'https://pages.github.com',
+        'netlify': 'https://www.netlify.com',
+        'vercel': 'https://vercel.com',
+        'cloudflare': 'https://www.cloudflare.com',
+        'aws': 'https://aws.amazon.com',
+        'azure': 'https://azure.microsoft.com',
+        'gcp': 'https://cloud.google.com',
     }
     for kw, url in website_keywords.items():
         if kw in app_key:
@@ -171,7 +287,7 @@ def OpenApp(app, sess=requests.session()):
             return True
     
     try:
-        appopen(app, match_closest=True, output=True, throw_error=True) # Attempt to open the application.
+        appopen(app, match_closest=False, output=True, throw_error=True) # Attempt to open the application without nearest-match.
         return True # Indicate success.
     
     except:
@@ -225,15 +341,12 @@ def OpenApp(app, sess=requests.session()):
     
 # Function to close an application.
 def CloseApp(app):
-
-    if "chrome" in app:
-        pass # Skip if the app is Chrome
-    else:
-        try:
-            close(app, match_closest=True, output=True, throw_error=True) # Attempt to close the app.
-            return True # Indicate success.
-        except:
-            return False # Indicate failure.
+    try:
+        # Do not use nearest-match when closing, and allow Chrome to be closed as well.
+        close(app, match_closest=False, output=True, throw_error=True) # Attempt to close the app.
+        return True # Indicate success.
+    except:
+        return False # Indicate failure.
 
 # Function to execute system-level commands.
 def System(command):
@@ -272,6 +385,478 @@ async def TranslateAndExecute(commands: list[str]):
     funcs = [] # List to store asynchronous tasks.
     
     for command in commands:
+        # Normalize the command to be more tolerant: lowercase and strip punctuation
+        norm = re.sub(r"[^a-z0-9 ]+", "", command.lower())
+
+                # SCREEN MONITOR MODE HANDLING
+        if "screen monitor on" in norm:
+            start_screen_monitor()
+            await asyncio.to_thread(TextToSpeech, "Screen monitor activated")
+            continue
+
+        # Turn OFF handling: tolerate 'off'/'of' variants and always disable debug + stop monitor
+        if (
+            "screen monitor off" in norm
+            or "screen monitor of" in norm
+            or "screen monitor testing off" in norm
+            or "screen monitor testing of" in norm
+            or "exit screen monitor" in norm
+        ):
+            mon = get_screen_monitor()
+            if mon:
+                try:
+                    mon.set_debug(False)
+                except Exception:
+                    pass
+            stop_screen_monitor()
+            await asyncio.to_thread(TextToSpeech, "Screen monitor testing disabled and deactivated")
+            continue
+
+        # Support both 'debug on' and 'testing on'
+        if "screen monitor debug on" in norm or "screen monitor testing on" in norm:
+            mon = get_screen_monitor()
+            if mon:
+                mon.set_debug(True)
+                await asyncio.to_thread(TextToSpeech, "Screen monitor testing enabled" if "testing on" in norm else "Screen monitor debug enabled")
+            else:
+                await asyncio.to_thread(TextToSpeech, "Screen monitor is not running")
+            continue
+
+        # Support both 'debug off' and 'testing off' (also tolerate 'of')
+        if (
+            "screen monitor debug off" in norm
+            or "screen monitor testing off" in norm
+            or "screen monitor debug of" in norm
+            or "screen monitor testing of" in norm
+        ):
+            mon = get_screen_monitor()
+            if mon:
+                mon.set_debug(False)
+                await asyncio.to_thread(TextToSpeech, "Screen monitor testing disabled" if "testing off" in norm else "Screen monitor debug disabled")
+            else:
+                await asyncio.to_thread(TextToSpeech, "Screen monitor is not running")
+            continue
+
+        monitor = get_screen_monitor()
+        if monitor and monitor.running:
+            # Utility to sanitize and find a title robustly
+            def _find_title_box(raw_title: str):
+                t = (raw_title or "").strip()
+                t_trim = t.rstrip(" .!?\t\n")
+                t_clean = re.sub(r"[^a-z0-9 ]+", " ", t_trim.lower()).strip()
+                box = monitor.find_text(t) or monitor.find_text(t_trim) or monitor.find_text(t_clean)
+                if not box and t_clean:
+                    parts = t_clean.split()
+                    short = " ".join(parts[:6]) if parts else t_clean
+                    if short:
+                        box = monitor.find_text(short)
+                return box
+
+            # 0) Hover-only command to verify OCR coordinates interactively
+            if (
+                norm.startswith("hover title ") or norm.startswith("over title ") or
+                norm.startswith("hover ") or norm.startswith("over ")
+            ):
+                lower_cmd = command.lower()
+                # Accept multiple aliases/variants
+                keys = [
+                    "hover title ",
+                    "over title ",
+                    "hover ",
+                    "over ",
+                ]
+                title = ""
+                for key in keys:
+                    if lower_cmd.startswith(key):
+                        try:
+                            start = len(key)
+                            title = command[start:].strip()
+                        except Exception:
+                            title = ""
+                        break
+                if not title:
+                    title = extract_title_from_command(command) or ""
+
+                if not title:
+                    await asyncio.to_thread(TextToSpeech, "Please say the video title to hover")
+                    continue
+
+                box = _find_title_box(title)
+                if not box:
+                    await asyncio.to_thread(TextToSpeech, "Cannot locate that video title to hover")
+                    continue
+                try:
+                    pyautogui.moveTo(box['x'], box['y'])
+                except Exception:
+                    pass
+                await asyncio.to_thread(TextToSpeech, f"Hovering at {box['x']}, {box['y']}")
+                continue
+            # High-level actions on a video by title
+            # 1) Add to Watch later
+            if norm.startswith("add to watch later "):
+                # Extract the raw title from the original command to preserve casing/punctuation
+                lower_cmd = command.lower()
+                key = "add to watch later "
+                try:
+                    start = lower_cmd.index(key) + len(key)
+                    title = command[start:].strip()
+                except ValueError:
+                    title = extract_title_from_command(command) or ""
+
+                if not title:
+                    await asyncio.to_thread(TextToSpeech, "Please say the video title to add to Watch later")
+                    continue
+
+                # Announce intent with title so user knows it's processing
+                await asyncio.to_thread(TextToSpeech, f"Add to Watch later: {title}")
+                box = _find_title_box(title)
+                if not box:
+                    await asyncio.to_thread(TextToSpeech, "Cannot locate that video title")
+                    continue
+
+                # Hover over near the title to reveal overlay/menu icons (aim slightly above title -> thumbnail area)
+                try:
+                    pyautogui.moveTo(box['x'], max(0, box['y'] - 60))
+                except Exception:
+                    pass
+                await asyncio.sleep(0.35)
+
+                # Attempt fastest path: click overlay watch-later icon directly near this tile
+                wl_icon = None
+                try:
+                    wl_icon = monitor.match_template_near("watch_later_icon.png", box['x'], box['y'], search_radius=500, threshold=0.75)
+                except Exception:
+                    wl_icon = None
+                if wl_icon:
+                    monitor.click_at(wl_icon['x'], wl_icon['y'])
+                    await asyncio.to_thread(TextToSpeech, "Added to Watch later")
+                    continue
+
+                # Relative three-dot menu click fallback (no templates)
+                # Try a few offsets to the right/above the title to hit the tile menu
+                rel_clicked = False
+                for dx in (200, 240, 280):
+                    for dy in (-20, -10, 0):
+                        tx, ty = box['x'] + dx, box['y'] + dy
+                        try:
+                            pyautogui.moveTo(tx, ty)
+                            monitor.click_at(tx, ty)
+                        except Exception:
+                            continue
+                        await asyncio.sleep(0.25)
+                        # If Watch later is directly in this menu
+                        item = monitor.find_text("watch later")
+                        if item:
+                            monitor.click_at(item['x'], item['y'])
+                            await asyncio.to_thread(TextToSpeech, "Added to Watch later")
+                            rel_clicked = True
+                            break
+                        # Otherwise look for Save then Watch later
+                        save = monitor.find_text("save") or monitor.find_text("save to")
+                        if save:
+                            monitor.click_at(save['x'], save['y'])
+                            await asyncio.sleep(0.3)
+                            wl = monitor.find_text("watch later")
+                            if wl:
+                                monitor.click_at(wl['x'], wl['y'])
+                                await asyncio.to_thread(TextToSpeech, "Added to Watch later")
+                                rel_clicked = True
+                                break
+                    if rel_clicked:
+                        break
+                if rel_clicked:
+                    continue
+
+                # Fallback: Open the three-dot menu near this tile
+                icon = monitor.match_template_near("three_dot_icon.png", box['x'], box['y'], search_radius=500, threshold=0.75)
+                if icon:
+                    monitor.click_at(icon['x'], icon['y'])
+                else:
+                    # Text-only fallback: open video page and use player controls
+                    await asyncio.to_thread(TextToSpeech, "Menu not found, opening video page to save")
+                    monitor.click_at(box['x'], box['y'])
+                    await asyncio.sleep(1.8)
+                    # Ensure page focus
+                    try:
+                        # Click near center to focus player, then toggle play/pause to ensure focus
+                        w, h = pyautogui.size()
+                        pyautogui.click(w//2, h//2)
+                        await asyncio.sleep(0.2)
+                        keyboard.press_and_release('k')
+                    except Exception:
+                        pass
+                    await asyncio.sleep(0.5)
+
+                    # First try YouTube keyboard shortcut to open Save dialog
+                    try:
+                        keyboard.press_and_release('s')
+                        await asyncio.sleep(0.8)
+                    except Exception:
+                        pass
+
+                    # Try multiple synonyms for 'Watch later' in the dialog
+                    wl = (
+                        monitor.find_text("watch later") or
+                        monitor.find_text("watchlater")
+                    )
+                    if wl:
+                        pyautogui.moveTo(wl['x'], wl['y'])
+                        monitor.click_at(wl['x'], wl['y'])
+                        await asyncio.to_thread(TextToSpeech, "Added to Watch later")
+                        # Go back to feed
+                        try:
+                            keyboard.press_and_release('alt+left')
+                        except Exception:
+                            pass
+                        await asyncio.sleep(0.8)
+                        continue
+
+                    # If shortcut path failed, try clicking Save button by text
+                    save_btn = (
+                        monitor.find_text("save") or
+                        monitor.find_text("save to") or
+                        monitor.find_text("save to playlist")
+                    )
+                    if save_btn:
+                        pyautogui.moveTo(save_btn['x'], save_btn['y'])
+                        monitor.click_at(save_btn['x'], save_btn['y'])
+                        await asyncio.sleep(0.3)
+                        wl = (
+                            monitor.find_text("watch later") or
+                            monitor.find_text("watchlater")
+                        )
+                        if wl:
+                            pyautogui.moveTo(wl['x'], wl['y'])
+                            monitor.click_at(wl['x'], wl['y'])
+                            await asyncio.to_thread(TextToSpeech, "Added to Watch later")
+                        else:
+                            await asyncio.to_thread(TextToSpeech, "Watch later option not found")
+                    else:
+                        await asyncio.to_thread(TextToSpeech, "Save button not found")
+
+                    # Navigate back
+                    try:
+                        keyboard.press_and_release('alt+left')
+                    except Exception:
+                        pass
+                    await asyncio.sleep(0.8)
+                    continue
+
+                # Give menu a moment to appear
+                await asyncio.sleep(0.2)
+
+                # Try clicking 'Watch later' directly; if not present, try 'Save' then 'Watch later'
+                item = monitor.find_text("watch later")
+                if item:
+                    monitor.click_at(item['x'], item['y'])
+                    await asyncio.to_thread(TextToSpeech, "Added to Watch later")
+                    continue
+
+                save = monitor.find_text("save")
+                if save:
+                    monitor.click_at(save['x'], save['y'])
+                    await asyncio.sleep(0.2)
+                    wl = monitor.find_text("watch later")
+                    if wl:
+                        monitor.click_at(wl['x'], wl['y'])
+                        await asyncio.to_thread(TextToSpeech, "Added to Watch later")
+                    else:
+                        await asyncio.to_thread(TextToSpeech, "Watch later option not found")
+                else:
+                    await asyncio.to_thread(TextToSpeech, "Save option not found")
+                continue
+
+            # 2) Copy link for a video title (accept both 'copy link for <title>' and 'copy link <title>')
+            if norm.startswith("copy link for ") or (norm.startswith("copy link ") and not norm.startswith("copy link for ")):
+                lower_cmd = command.lower()
+                title = ""
+                if lower_cmd.startswith("copy link for "):
+                    key = "copy link for "
+                    try:
+                        start = lower_cmd.index(key) + len(key)
+                        title = command[start:].strip()
+                    except ValueError:
+                        title = extract_title_from_command(command) or ""
+                else:
+                    key = "copy link "
+                    try:
+                        start = lower_cmd.index(key) + len(key)
+                        title = command[start:].strip()
+                    except ValueError:
+                        title = extract_title_from_command(command) or ""
+
+                if not title:
+                    await asyncio.to_thread(TextToSpeech, "Please say the video title to copy link")
+                    continue
+
+                # Announce intent with title so user knows it's processing
+                await asyncio.to_thread(TextToSpeech, f"Copy link for: {title}")
+                box = _find_title_box(title)
+                if not box:
+                    await asyncio.to_thread(TextToSpeech, "Cannot locate that video title")
+                    continue
+
+                # Hover over near the title to reveal overlay/menu icons (aim slightly above title -> thumbnail area)
+                try:
+                    pyautogui.moveTo(box['x'], max(0, box['y'] - 60))
+                except Exception:
+                    pass
+                await asyncio.sleep(0.35)
+
+                # Relative three-dot menu click fallback (no templates)
+                rel_clicked = False
+                for dx in (200, 240, 280):
+                    for dy in (-20, -10, 0):
+                        tx, ty = box['x'] + dx, box['y'] + dy
+                        try:
+                            pyautogui.moveTo(tx, ty)
+                            monitor.click_at(tx, ty)
+                        except Exception:
+                            continue
+                        await asyncio.sleep(0.25)
+                        # If Copy link is directly visible
+                        cp = monitor.find_text("copy link") or monitor.find_text("copy")
+                        if cp:
+                            monitor.click_at(cp['x'], cp['y'])
+                            await asyncio.to_thread(TextToSpeech, "Link copied to clipboard")
+                            rel_clicked = True
+                            break
+                        # Otherwise look for Share and then Copy
+                        share = monitor.find_text("share")
+                        if share:
+                            monitor.click_at(share['x'], share['y'])
+                            await asyncio.sleep(0.3)
+                            cp2 = monitor.find_text("copy link") or monitor.find_text("copy") or monitor.find_text("copy url")
+                            if cp2:
+                                monitor.click_at(cp2['x'], cp2['y'])
+                                await asyncio.to_thread(TextToSpeech, "Link copied to clipboard")
+                                rel_clicked = True
+                                break
+                    if rel_clicked:
+                        break
+                if rel_clicked:
+                    continue
+
+                # Open the three-dot menu near this tile
+                icon = monitor.match_template_near("three_dot_icon.png", box['x'], box['y'], search_radius=500, threshold=0.75)
+                if icon:
+                    monitor.click_at(icon['x'], icon['y'])
+                else:
+                    # Text-only fallback: open video page and copy URL via address bar
+                    await asyncio.to_thread(TextToSpeech, "Menu not found, opening video page to copy link")
+                    monitor.click_at(box['x'], box['y'])
+                    await asyncio.sleep(1.8)
+                    # Focus the address bar and copy the URL
+                    try:
+                        # Ensure focus first
+                        w, h = pyautogui.size()
+                        pyautogui.click(w//2, h//2)
+                        await asyncio.sleep(0.2)
+                        keyboard.press_and_release('ctrl+l')
+                        await asyncio.sleep(0.35)
+                        keyboard.press_and_release('ctrl+c')
+                        await asyncio.to_thread(TextToSpeech, "Link copied to clipboard")
+                    except Exception:
+                        await asyncio.to_thread(TextToSpeech, "Could not copy URL")
+                    # Navigate back
+                    try:
+                        keyboard.press_and_release('alt+left')
+                    except Exception:
+                        pass
+                    await asyncio.sleep(0.8)
+                    continue
+
+                await asyncio.sleep(0.2)
+
+                share = monitor.find_text("share")
+                if share:
+                    monitor.click_at(share['x'], share['y'])
+                    await asyncio.sleep(0.2)
+                    copy_item = monitor.find_text("copy link")
+                    if copy_item:
+                        monitor.click_at(copy_item['x'], copy_item['y'])
+                        await asyncio.to_thread(TextToSpeech, "Link copied to clipboard")
+                    else:
+                        await asyncio.to_thread(TextToSpeech, "Copy link option not found")
+                else:
+                    # Some UIs show 'Copy link' directly in the first menu
+                    copy_item = monitor.find_text("copy link")
+                    if copy_item:
+                        monitor.click_at(copy_item['x'], copy_item['y'])
+                        await asyncio.to_thread(TextToSpeech, "Link copied to clipboard")
+                    else:
+                        await asyncio.to_thread(TextToSpeech, "Share option not found")
+                continue
+            # Quick navigation commands on YouTube-like UIs
+            # Only trigger when explicitly asked to click
+            if "click on home" in norm or "click home" in norm:
+                item = monitor.find_text("Home")
+                if item:
+                    monitor.click_at(item['x'], item['y'])
+                    await asyncio.to_thread(TextToSpeech, "Home")
+                else:
+                    await asyncio.to_thread(TextToSpeech, "Home not found")
+                continue
+
+            if ("click on history" in norm or "click history" in norm
+                or "click on histry" in norm or "click histry" in norm):
+                item = monitor.find_text("History")
+                if item:
+                    monitor.click_at(item['x'], item['y'])
+                    await asyncio.to_thread(TextToSpeech, "History opened")
+                else:
+                    await asyncio.to_thread(TextToSpeech, "History not found")
+                continue
+
+            if ("click on watch later" in norm or "click watch later" in norm
+                or "click on watchlater" in norm or "click watchlater" in norm):
+                item = monitor.find_text("Watch later")
+                if item:
+                    monitor.click_at(item['x'], item['y'])
+                    await asyncio.to_thread(TextToSpeech, "Opening Watch later")
+                else:
+                    await asyncio.to_thread(TextToSpeech, "Watch later not found")
+                continue
+            if any(k in norm for k in ["play", "watch", "open"]) and extract_title_from_command(command):
+                title = extract_title_from_command(command)
+                box = monitor.find_text(title)
+                if box:
+                    monitor.click_at(box['x'], box['y'])
+                    await asyncio.to_thread(TextToSpeech, f"Playing {box['text']}")
+                else:
+                    await asyncio.to_thread(TextToSpeech, "Could not find that title on screen")
+                continue
+
+            if "open menu for" in norm or "menu for" in norm:
+                title = extract_title_from_command(command)
+                box = monitor.find_text(title)
+                if not box:
+                    await asyncio.to_thread(TextToSpeech, "Cannot locate the video title")
+                    continue
+                icon = monitor.match_template("three_dot_icon.png")
+                if icon:
+                    monitor.click_at(icon['x'], icon['y'])
+                    await asyncio.to_thread(TextToSpeech, "Menu opened")
+                else:
+                    await asyncio.to_thread(TextToSpeech, "Menu icon not found")
+                continue
+
+            if "copy link" in norm:
+                item = monitor.find_text("copy link")
+                if item:
+                    monitor.click_at(item['x'], item['y'])
+                    await asyncio.to_thread(TextToSpeech, "Link copied to clipboard")
+                else:
+                    await asyncio.to_thread(TextToSpeech, "Copy link option not found")
+                continue
+
+            if "paste link" in norm:
+                monitor.paste()
+                await asyncio.to_thread(TextToSpeech, "Pasted link")
+                continue
+
+            await asyncio.to_thread(TextToSpeech, "Screen-monitor: command not recognized")
+            continue
 
         if command.startswith("open "): # Handle "open" commands.
 

@@ -104,6 +104,55 @@ def FirstLayerDMM(prompt: str = "test"):
     # Update the responsed with the filtered list of tasks.
     response = temp
 
+    # Post-process: normalize misclassified intents so automation handles them correctly.
+    # - 'realtime open ...'           -> 'open ...'
+    # - '(general|youtube search|realtime|content) add to watch later ...' -> 'add to watch later ...'
+    # - '(general|youtube search|realtime) copy link for ...'            -> 'copy link for ...'
+    # - '(general|youtube search|realtime) copy link ...' (no "for")     -> 'copy link for ...'
+    # - 'copy link ...' (no prefix, no "for")                            -> 'copy link for ...'
+    sanitized = []
+    for task in response:
+        # Normalize only for the prefix check; keep the rest of the string intact
+        low = task.lower()
+        if low.startswith("realtime open "):
+            tail = task[len("realtime open "):].strip()
+            task = f"open {tail}"
+        elif low.startswith("youtube search add to watch later "):
+            tail = task[len("youtube search add to watch later "):].strip()
+            task = f"add to watch later {tail}"
+        elif low.startswith("general add to watch later "):
+            tail = task[len("general add to watch later "):].strip()
+            task = f"add to watch later {tail}"
+        elif low.startswith("realtime add to watch later "):
+            tail = task[len("realtime add to watch later "):].strip()
+            task = f"add to watch later {tail}"
+        elif low.startswith("content add to watch later "):
+            tail = task[len("content add to watch later "):].strip()
+            task = f"add to watch later {tail}"
+        elif low.startswith("general copy link for "):
+            tail = task[len("general copy link for "):].strip()
+            task = f"copy link for {tail}"
+        elif low.startswith("youtube search copy link for "):
+            tail = task[len("youtube search copy link for "):].strip()
+            task = f"copy link for {tail}"
+        elif low.startswith("realtime copy link for "):
+            tail = task[len("realtime copy link for "):].strip()
+            task = f"copy link for {tail}"
+        elif low.startswith("general copy link "):
+            tail = task[len("general copy link "):].strip()
+            task = f"copy link for {tail}"
+        elif low.startswith("youtube search copy link "):
+            tail = task[len("youtube search copy link "):].strip()
+            task = f"copy link for {tail}"
+        elif low.startswith("realtime copy link "):
+            tail = task[len("realtime copy link "):].strip()
+            task = f"copy link for {tail}"
+        elif low.startswith("copy link ") and not low.startswith("copy link for "):
+            tail = task[len("copy link "):].strip()
+            task = f"copy link for {tail}"
+        sanitized.append(task)
+    response = sanitized
+
     # If '(query)' is in the response, recursively call the function for further clarification.
     if "(query)" in response:
         newresponse = FirstLayerDMM(prompt=prompt)

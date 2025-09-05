@@ -9,7 +9,7 @@ env_vars = dotenv_values(".env")
 
 # Retrieve environment variables for the chatbot configuration.
 Username = env_vars.get("Username")
-Assistantname = env_vars.get("Assitantname")
+Assistantname = env_vars.get("Assistantname")
 GroqAPIKey = env_vars.get("GroqAPIKey")
 
 # Initialize the Groq client with the provided API key.
@@ -53,7 +53,7 @@ SystemChatBot = [
     {"role": "assistant", "content": "Hello, how can i Help you?"}
 ]
 
-# Function to get real-time information like hte current date and time
+# Function to get real-time information like the current date and time
 def Information():
     data = ""
     current_date_time = datetime.datetime.now()
@@ -85,15 +85,35 @@ def RealTimeSearchEngine(prompt):
     SystemChatBot.append({"role": "system", "content": GoogleSearch(prompt)})
 
     # Generate a response using the Groq client.
-    completion = client.chat.completions.create(
-        model="llama3-70b-8192",
-        messages=SystemChatBot + [{"role": "system", "content": Information()}] + messages,
-        temperature=0.7,
-        max_tokens=2048,
-        top_p=1,
-        stream=True,
-        stop=None
-    )
+    preferred_model = env_vars.get("GroqModel") or "llama-3.1-8b-instant"
+    model_to_use = preferred_model
+    try:
+        completion = client.chat.completions.create(
+            model=model_to_use,
+            messages=SystemChatBot + [{"role": "system", "content": Information()}] + messages,
+            temperature=0.7,
+            max_tokens=2048,
+            top_p=1,
+            stream=True,
+            stop=None
+        )
+    except Exception as e:
+        if "model_decommissioned" in str(e).lower() or "no longer supported" in str(e).lower():
+            if model_to_use != "llama-3.1-8b-instant":
+                model_to_use = "llama-3.1-8b-instant"
+                completion = client.chat.completions.create(
+                    model=model_to_use,
+                    messages=SystemChatBot + [{"role": "system", "content": Information()}] + messages,
+                    temperature=0.7,
+                    max_tokens=2048,
+                    top_p=1,
+                    stream=True,
+                    stop=None
+                )
+            else:
+                raise
+        else:
+            raise
 
     Answer = " "
 

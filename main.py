@@ -1,3 +1,4 @@
+import sys
 from Frontend.GUI import(
 GraphicalUserInterface,
 SetAssistantStatus,

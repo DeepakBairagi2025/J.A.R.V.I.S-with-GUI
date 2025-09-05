@@ -74,16 +74,37 @@ def ChatBot(Query):
         # Append the user's query to the message list.
         messages.append({"role": "user", "content": f"{Query}"})
 
-        # Make a request to the Groq API for a response.
-        completion = client.chat.completions.create(
-            model="llama3-70b-8192", # Specify the AI model to use.
-            messages=SystemChatBot + [{"role": "user", "content": RealTimeInformation()}] + messages, # Include system instruction, real-time info, and chat history.
-            max_tokens=1024, # Limit the maximum tokens in the response.
-            temperature=0.7, #Adjust response randomness (higher means more random).
-            top_p=1, # Use nucleus sampling to control diversity.
-            stream=True, # Enable streaming response.
-            stop=None # Allow the model to determine when to stop.
-        )
+        # Make a request to the Groq API for a response, with model fallback handling.
+        preferred_model = env_vars.get("GroqModel") or "llama-3.1-8b-instant"
+        model_to_use = preferred_model
+        try:
+            completion = client.chat.completions.create(
+                model=model_to_use,
+                messages=SystemChatBot + [{"role": "user", "content": RealTimeInformation()}] + messages,
+                max_tokens=1024,
+                temperature=0.7,
+                top_p=1,
+                stream=True,
+                stop=None
+            )
+        except Exception as e:
+            # If the chosen model is decommissioned or invalid, fall back to a safe default
+            if "model_decommissioned" in str(e).lower() or "no longer supported" in str(e).lower():
+                if model_to_use != "llama-3.1-8b-instant":
+                    model_to_use = "llama-3.1-8b-instant"
+                    completion = client.chat.completions.create(
+                        model=model_to_use,
+                        messages=SystemChatBot + [{"role": "user", "content": RealTimeInformation()}] + messages,
+                        max_tokens=1024,
+                        temperature=0.7,
+                        top_p=1,
+                        stream=True,
+                        stop=None
+                    )
+                else:
+                    raise
+            else:
+                raise
 
         Answer = "" # Initialize an empty string to store the AI's response.
 
