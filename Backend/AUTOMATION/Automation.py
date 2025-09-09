@@ -385,13 +385,45 @@ async def TranslateAndExecute(commands: list[str]):
     funcs = [] # List to store asynchronous tasks.
     
     for command in commands:
+        handled = False
         # Normalize the command to be more tolerant: lowercase and strip punctuation
+        if command.lower().startswith("automation "):
+            command = command[len("automation "):].strip()
+
         norm = re.sub(r"[^a-z0-9 ]+", "", command.lower())
+        try:
+            print(f"[Automation] Received command: '{command}' | norm='{norm}'")
+        except Exception:
+            pass
+
+        # (Removed early URL-opening navigation handler per user request)
+
+        # Early handling for 'open ...' to avoid being swallowed by screen-monitor block
+        if norm.startswith("open "):
+            # Ignore ambiguous/unsupported phrases
+            if "open it" in norm or norm == "open file":
+                handled = True
+                continue
+            fun = asyncio.to_thread(OpenApp, command.removeprefix("open "))
+            funcs.append(fun)
+            handled = True
+            continue
+
+        # If user asks to click on Home/History/Watch later but monitor is OFF, inform and skip (no URL open)
+        if ("click on home" in norm or "click home" in norm
+            or "click on history" in norm or "click history" in norm or "click on histry" in norm or "click histry" in norm
+            or "click on watch later" in norm or "click watch later" in norm or "click on watchlater" in norm or "click watchlater" in norm):
+            mon_state = get_screen_monitor()
+            if not (mon_state and mon_state.running):
+                await asyncio.to_thread(TextToSpeech, "Screen monitor is not running")
+                handled = True
+                continue
 
                 # SCREEN MONITOR MODE HANDLING
         if "screen monitor on" in norm:
             start_screen_monitor()
             await asyncio.to_thread(TextToSpeech, "Screen monitor activated")
+            handled = True
             continue
 
         # Turn OFF handling: tolerate 'off'/'of' variants and always disable debug + stop monitor
@@ -410,6 +442,7 @@ async def TranslateAndExecute(commands: list[str]):
                     pass
             stop_screen_monitor()
             await asyncio.to_thread(TextToSpeech, "Screen monitor testing disabled and deactivated")
+            handled = True
             continue
 
         # Support both 'debug on' and 'testing on'
@@ -420,6 +453,7 @@ async def TranslateAndExecute(commands: list[str]):
                 await asyncio.to_thread(TextToSpeech, "Screen monitor testing enabled" if "testing on" in norm else "Screen monitor debug enabled")
             else:
                 await asyncio.to_thread(TextToSpeech, "Screen monitor is not running")
+            handled = True
             continue
 
         # Support both 'debug off' and 'testing off' (also tolerate 'of')
@@ -435,6 +469,7 @@ async def TranslateAndExecute(commands: list[str]):
                 await asyncio.to_thread(TextToSpeech, "Screen monitor testing disabled" if "testing off" in norm else "Screen monitor debug disabled")
             else:
                 await asyncio.to_thread(TextToSpeech, "Screen monitor is not running")
+            handled = True
             continue
 
         monitor = get_screen_monitor()
@@ -452,18 +487,30 @@ async def TranslateAndExecute(commands: list[str]):
                         box = monitor.find_text(short)
                 return box
 
-            # 0) Hover-only command to verify OCR coordinates interactively
+            # 0) Cursor/Focus command to verify OCR coordinates interactively (replaces 'hover')
             if (
-                norm.startswith("hover title ") or norm.startswith("over title ") or
-                norm.startswith("hover ") or norm.startswith("over ")
+                norm.startswith("cursor title ") or
+                norm.startswith("cursor ") or
+                norm.startswith("focus title ") or
+                norm.startswith("focus on ") or
+                norm.startswith("pointer title ") or
+                norm.startswith("point to ") or
+                norm.startswith("show pointer ")
             ):
+                try:
+                    print("[Automation][Focus] Handler matched")
+                except Exception:
+                    pass
                 lower_cmd = command.lower()
-                # Accept multiple aliases/variants
+                # Accepted keys (ordered, first match wins)
                 keys = [
-                    "hover title ",
-                    "over title ",
-                    "hover ",
-                    "over ",
+                    "cursor title ",
+                    "cursor ",
+                    "focus title ",
+                    "focus on ",
+                    "pointer title ",
+                    "point to ",
+                    "show pointer ",
                 ]
                 title = ""
                 for key in keys:
@@ -479,22 +526,128 @@ async def TranslateAndExecute(commands: list[str]):
 
                 if not title:
                     await asyncio.to_thread(TextToSpeech, "Please say the video title to hover")
+                    handled = True
                     continue
+
+                # Announce what we're focusing so user knows handler triggered
+                await asyncio.to_thread(TextToSpeech, f"Focusing on: {title}")
+                try:
+                    print(f"[Automation][Focus] Title raw='{title}'")
+                except Exception:
+                    pass
 
                 box = _find_title_box(title)
                 if not box:
                     await asyncio.to_thread(TextToSpeech, "Cannot locate that video title to hover")
+                    try:
+                        print("[Automation][Focus] No OCR box found for title")
+                    except Exception:
+                        pass
+                    handled = True
                     continue
                 try:
                     pyautogui.moveTo(box['x'], box['y'])
                 except Exception:
                     pass
+                await asyncio.sleep(0.15)
                 await asyncio.to_thread(TextToSpeech, f"Hovering at {box['x']}, {box['y']}")
+                handled = True
                 continue
-            # High-level actions on a video by title
-            # 1) Add to Watch later
+
+            # Quick navigation commands on YouTube-like UIs (handle before fallback)
+            if ("click on home" in norm or "click home" in norm):
+                try:
+                    print("[Automation][Nav] Click Home matched")
+                except Exception:
+                    pass
+                # Try common variants and pick the leftmost occurrence (sidebar)
+                candidates = [
+                    "Home", "home", "HOME"
+                ]
+                best = None
+                for txt in candidates:
+                    itm = monitor.find_text(txt)
+                    if itm:
+                        if (best is None) or (itm['x'] < best['x']):
+                            best = itm
+                if best:
+                    w, _ = pyautogui.size()
+                    if best['x'] < int(0.4 * w):
+                        monitor.click_at(best['x'], best['y'])
+                    else:
+                        await asyncio.to_thread(TextToSpeech, "Home not found")
+                        handled = True
+                        continue
+                    await asyncio.to_thread(TextToSpeech, "Home")
+                else:
+                    await asyncio.to_thread(TextToSpeech, "Home not found")
+                handled = True
+                continue
+
+            if ("click on history" in norm or "click history" in norm
+                or "click on histry" in norm or "click histry" in norm):
+                try:
+                    print("[Automation][Nav] Click History matched")
+                except Exception:
+                    pass
+                candidates = [
+                    "History", "history", "Histry", "histry"
+                ]
+                best = None
+                for txt in candidates:
+                    itm = monitor.find_text(txt)
+                    if itm:
+                        if (best is None) or (itm['x'] < best['x']):
+                            best = itm
+                if best:
+                    w, _ = pyautogui.size()
+                    if best['x'] < int(0.4 * w):
+                        monitor.click_at(best['x'], best['y'])
+                    else:
+                        await asyncio.to_thread(TextToSpeech, "History not found")
+                        handled = True
+                        continue
+                    await asyncio.to_thread(TextToSpeech, "History opened")
+                else:
+                    await asyncio.to_thread(TextToSpeech, "History not found")
+                handled = True
+                continue
+
+            if ("click on watch later" in norm or "click watch later" in norm
+                or "click on watchlater" in norm or "click watchlater" in norm):
+                try:
+                    print("[Automation][Nav] Click Watch later matched")
+                except Exception:
+                    pass
+                candidates = [
+                    "Watch later", "Watch Later", "watch later", "watchlater", "WATCH LATER"
+                ]
+                best = None
+                for txt in candidates:
+                    itm = monitor.find_text(txt)
+                    if itm:
+                        if (best is None) or (itm['x'] < best['x']):
+                            best = itm
+                if best:
+                    w, _ = pyautogui.size()
+                    if best['x'] < int(0.4 * w):
+                        monitor.click_at(best['x'], best['y'])
+                    else:
+                        await asyncio.to_thread(TextToSpeech, "Watch later not found")
+                        handled = True
+                        continue
+                    await asyncio.to_thread(TextToSpeech, "Opening Watch later")
+                else:
+                    await asyncio.to_thread(TextToSpeech, "Watch later not found")
+                handled = True
+                continue
+
+            # High-level action: Add to Watch later by video title (place BEFORE fallback)
             if norm.startswith("add to watch later "):
-                # Extract the raw title from the original command to preserve casing/punctuation
+                try:
+                    print("[Automation][WatchLater] Handler matched (pre-fallback)")
+                except Exception:
+                    pass
                 lower_cmd = command.lower()
                 key = "add to watch later "
                 try:
@@ -505,23 +658,40 @@ async def TranslateAndExecute(commands: list[str]):
 
                 if not title:
                     await asyncio.to_thread(TextToSpeech, "Please say the video title to add to Watch later")
+                    handled = True
                     continue
 
-                # Announce intent with title so user knows it's processing
                 await asyncio.to_thread(TextToSpeech, f"Add to Watch later: {title}")
+                try:
+                    print(f"[Automation][WatchLater] Searching for title='{title}'")
+                except Exception:
+                    pass
                 box = _find_title_box(title)
                 if not box:
                     await asyncio.to_thread(TextToSpeech, "Cannot locate that video title")
+                    handled = True
                     continue
 
-                # Hover over near the title to reveal overlay/menu icons (aim slightly above title -> thumbnail area)
+                # Ensure browser window focus before interacting near the tile
+                try:
+                    w, h = pyautogui.size()
+                    pyautogui.click(w//2, h//2)
+                    await asyncio.sleep(0.15)
+                except Exception:
+                    pass
+
+                # Hover slightly above title to reveal overlay/menu icons
                 try:
                     pyautogui.moveTo(box['x'], max(0, box['y'] - 60))
                 except Exception:
                     pass
                 await asyncio.sleep(0.35)
 
-                # Attempt fastest path: click overlay watch-later icon directly near this tile
+                # Try overlay watch-later icon near this tile
+                try:
+                    print("[Automation][WatchLater] Trying overlay icon near title")
+                except Exception:
+                    pass
                 wl_icon = None
                 try:
                     wl_icon = monitor.match_template_near("watch_later_icon.png", box['x'], box['y'], search_radius=500, threshold=0.75)
@@ -530,10 +700,14 @@ async def TranslateAndExecute(commands: list[str]):
                 if wl_icon:
                     monitor.click_at(wl_icon['x'], wl_icon['y'])
                     await asyncio.to_thread(TextToSpeech, "Added to Watch later")
+                    handled = True
                     continue
 
-                # Relative three-dot menu click fallback (no templates)
-                # Try a few offsets to the right/above the title to hit the tile menu
+                # Relative three-dot menu path
+                try:
+                    print("[Automation][WatchLater] Trying relative 3-dot menu near title")
+                except Exception:
+                    pass
                 rel_clicked = False
                 for dx in (200, 240, 280):
                     for dy in (-20, -10, 0):
@@ -547,17 +721,19 @@ async def TranslateAndExecute(commands: list[str]):
                         # If Watch later is directly in this menu
                         item = monitor.find_text("watch later")
                         if item:
-                            monitor.click_at(item['x'], item['y'])
-                            await asyncio.to_thread(TextToSpeech, "Added to Watch later")
-                            rel_clicked = True
-                            break
+                            w, _ = pyautogui.size()
+                            if abs(item['y'] - box['y']) < 300 and (box['x'] - 50) < item['x'] < int(0.9 * w):
+                                monitor.click_at(item['x'], item['y'])
+                                await asyncio.to_thread(TextToSpeech, "Added to Watch later")
+                                rel_clicked = True
+                                break
                         # Otherwise look for Save then Watch later
                         save = monitor.find_text("save") or monitor.find_text("save to")
                         if save:
                             monitor.click_at(save['x'], save['y'])
                             await asyncio.sleep(0.3)
                             wl = monitor.find_text("watch later")
-                            if wl:
+                            if wl and abs(wl['y'] - box['y']) < 300 and wl['x'] > box['x'] - 50:
                                 monitor.click_at(wl['x'], wl['y'])
                                 await asyncio.to_thread(TextToSpeech, "Added to Watch later")
                                 rel_clicked = True
@@ -565,20 +741,22 @@ async def TranslateAndExecute(commands: list[str]):
                     if rel_clicked:
                         break
                 if rel_clicked:
+                    handled = True
                     continue
 
-                # Fallback: Open the three-dot menu near this tile
+                # Template 3-dot near the tile, or fallback to open video page
+                try:
+                    print("[Automation][WatchLater] Trying template 3-dot icon near title")
+                except Exception:
+                    pass
                 icon = monitor.match_template_near("three_dot_icon.png", box['x'], box['y'], search_radius=500, threshold=0.75)
                 if icon:
                     monitor.click_at(icon['x'], icon['y'])
                 else:
-                    # Text-only fallback: open video page and use player controls
                     await asyncio.to_thread(TextToSpeech, "Menu not found, opening video page to save")
                     monitor.click_at(box['x'], box['y'])
                     await asyncio.sleep(1.8)
-                    # Ensure page focus
                     try:
-                        # Click near center to focus player, then toggle play/pause to ensure focus
                         w, h = pyautogui.size()
                         pyautogui.click(w//2, h//2)
                         await asyncio.sleep(0.2)
@@ -586,32 +764,13 @@ async def TranslateAndExecute(commands: list[str]):
                     except Exception:
                         pass
                     await asyncio.sleep(0.5)
-
-                    # First try YouTube keyboard shortcut to open Save dialog
                     try:
+                        print("[Automation][WatchLater] Pressing 's' to open Save dialog")
                         keyboard.press_and_release('s')
                         await asyncio.sleep(0.8)
                     except Exception:
                         pass
-
-                    # Try multiple synonyms for 'Watch later' in the dialog
-                    wl = (
-                        monitor.find_text("watch later") or
-                        monitor.find_text("watchlater")
-                    )
-                    if wl:
-                        pyautogui.moveTo(wl['x'], wl['y'])
-                        monitor.click_at(wl['x'], wl['y'])
-                        await asyncio.to_thread(TextToSpeech, "Added to Watch later")
-                        # Go back to feed
-                        try:
-                            keyboard.press_and_release('alt+left')
-                        except Exception:
-                            pass
-                        await asyncio.sleep(0.8)
-                        continue
-
-                    # If shortcut path failed, try clicking Save button by text
+                    # Already handled by keyboard flow above; keep this block as no-op
                     save_btn = (
                         monitor.find_text("save") or
                         monitor.find_text("save to") or
@@ -626,74 +785,66 @@ async def TranslateAndExecute(commands: list[str]):
                             monitor.find_text("watchlater")
                         )
                         if wl:
-                            pyautogui.moveTo(wl['x'], wl['y'])
-                            monitor.click_at(wl['x'], wl['y'])
+                            if abs(wl['y'] - box['y']) < 400:
+                                pyautogui.moveTo(wl['x'], wl['y'])
+                                monitor.click_at(wl['x'], wl['y'])
+                            else:
+                                await asyncio.to_thread(TextToSpeech, "Watch later option not found")
                             await asyncio.to_thread(TextToSpeech, "Added to Watch later")
                         else:
                             await asyncio.to_thread(TextToSpeech, "Watch later option not found")
-                    else:
-                        await asyncio.to_thread(TextToSpeech, "Save button not found")
+                        try:
+                            keyboard.press_and_release('alt+left')
+                        except Exception:
+                            pass
+                        await asyncio.sleep(0.8)
+                        handled = True
+                        continue
 
-                    # Navigate back
-                    try:
-                        keyboard.press_and_release('alt+left')
-                    except Exception:
-                        pass
-                    await asyncio.sleep(0.8)
-                    continue
+        # If we reached here and nothing handled this command, announce fallback and stop processing
+        if not handled:
+            mon_state = get_screen_monitor()
+            if mon_state and mon_state.running:
+                await asyncio.to_thread(TextToSpeech, "Screen-monitor: command not recognized")
+            else:
+                await asyncio.to_thread(TextToSpeech, "Command not recognized")
+            continue
 
-                # Give menu a moment to appear
-                await asyncio.sleep(0.2)
-
-                # Try clicking 'Watch later' directly; if not present, try 'Save' then 'Watch later'
-                item = monitor.find_text("watch later")
-                if item:
-                    monitor.click_at(item['x'], item['y'])
-                    await asyncio.to_thread(TextToSpeech, "Added to Watch later")
-                    continue
-
-                save = monitor.find_text("save")
-                if save:
-                    monitor.click_at(save['x'], save['y'])
-                    await asyncio.sleep(0.2)
-                    wl = monitor.find_text("watch later")
-                    if wl:
-                        monitor.click_at(wl['x'], wl['y'])
-                        await asyncio.to_thread(TextToSpeech, "Added to Watch later")
-                    else:
-                        await asyncio.to_thread(TextToSpeech, "Watch later option not found")
-                else:
-                    await asyncio.to_thread(TextToSpeech, "Save option not found")
-                continue
-
-            # 2) Copy link for a video title (accept both 'copy link for <title>' and 'copy link <title>')
-            if norm.startswith("copy link for ") or (norm.startswith("copy link ") and not norm.startswith("copy link for ")):
+            # High-level actions on a video by title
+            # 1) Add to Watch later
+            if norm.startswith("add to watch later "):
+                try:
+                    print("[Automation][WatchLater] Handler matched")
+                except Exception:
+                    pass
+                # Extract the raw title from the original command to preserve casing/punctuation
                 lower_cmd = command.lower()
-                title = ""
-                if lower_cmd.startswith("copy link for "):
-                    key = "copy link for "
-                    try:
-                        start = lower_cmd.index(key) + len(key)
-                        title = command[start:].strip()
-                    except ValueError:
-                        title = extract_title_from_command(command) or ""
-                else:
-                    key = "copy link "
-                    try:
-                        start = lower_cmd.index(key) + len(key)
-                        title = command[start:].strip()
-                    except ValueError:
-                        title = extract_title_from_command(command) or ""
+                key = "add to watch later "
+                try:
+                    start = lower_cmd.index(key) + len(key)
+                    title = command[start:].strip()
+                except ValueError:
+                    title = extract_title_from_command(command) or ""
 
                 if not title:
-                    await asyncio.to_thread(TextToSpeech, "Please say the video title to copy link")
+                    await asyncio.to_thread(TextToSpeech, "Please say the video title to add to Watch later")
+                    handled = True
                     continue
 
                 # Announce intent with title so user knows it's processing
-                await asyncio.to_thread(TextToSpeech, f"Copy link for: {title}")
+                await asyncio.to_thread(TextToSpeech, f"Add to Watch later: {title}")
+                try:
+                    print(f"[Automation][WatchLater] Searching for title='{title}'")
+                except Exception:
+                    pass
                 box = _find_title_box(title)
                 if not box:
                     await asyncio.to_thread(TextToSpeech, "Cannot locate that video title")
+                    try:
+                        print("[Automation][WatchLater] No OCR box found for title")
+                    except Exception:
+                        pass
+                    handled = True
                     continue
 
                 # Hover over near the title to reveal overlay/menu icons (aim slightly above title -> thumbnail area)
@@ -703,110 +854,20 @@ async def TranslateAndExecute(commands: list[str]):
                     pass
                 await asyncio.sleep(0.35)
 
-                # Relative three-dot menu click fallback (no templates)
-                rel_clicked = False
-                for dx in (200, 240, 280):
-                    for dy in (-20, -10, 0):
-                        tx, ty = box['x'] + dx, box['y'] + dy
-                        try:
-                            pyautogui.moveTo(tx, ty)
-                            monitor.click_at(tx, ty)
-                        except Exception:
-                            continue
-                        await asyncio.sleep(0.25)
-                        # If Copy link is directly visible
-                        cp = monitor.find_text("copy link") or monitor.find_text("copy")
-                        if cp:
-                            monitor.click_at(cp['x'], cp['y'])
-                            await asyncio.to_thread(TextToSpeech, "Link copied to clipboard")
-                            rel_clicked = True
-                            break
-                        # Otherwise look for Share and then Copy
-                        share = monitor.find_text("share")
-                        if share:
-                            monitor.click_at(share['x'], share['y'])
-                            await asyncio.sleep(0.3)
-                            cp2 = monitor.find_text("copy link") or monitor.find_text("copy") or monitor.find_text("copy url")
-                            if cp2:
-                                monitor.click_at(cp2['x'], cp2['y'])
-                                await asyncio.to_thread(TextToSpeech, "Link copied to clipboard")
-                                rel_clicked = True
-                                break
-                    if rel_clicked:
-                        break
-                if rel_clicked:
+                # Attempt fastest path: click overlay watch-later icon directly near this tile
+                wl_icon = None
+                try:
+                    print("[Automation][WatchLater] Trying overlay icon near title")
+                    wl_icon = monitor.match_template_near("watch_later_icon.png", box['x'], box['y'], search_radius=500, threshold=0.75)
+                except Exception:
+                    wl_icon = None
+                if wl_icon:
+                    monitor.click_at(wl_icon['x'], wl_icon['y'])
+                    await asyncio.to_thread(TextToSpeech, "Added to Watch later")
+                    handled = True
                     continue
 
-                # Open the three-dot menu near this tile
-                icon = monitor.match_template_near("three_dot_icon.png", box['x'], box['y'], search_radius=500, threshold=0.75)
-                if icon:
-                    monitor.click_at(icon['x'], icon['y'])
-                else:
-                    # Text-only fallback: open video page and copy URL via address bar
-                    await asyncio.to_thread(TextToSpeech, "Menu not found, opening video page to copy link")
-                    monitor.click_at(box['x'], box['y'])
-                    await asyncio.sleep(1.8)
-                    # Focus the address bar and copy the URL
-                    try:
-                        # Ensure focus first
-                        w, h = pyautogui.size()
-                        pyautogui.click(w//2, h//2)
-                        await asyncio.sleep(0.2)
-                        keyboard.press_and_release('ctrl+l')
-                        await asyncio.sleep(0.35)
-                        keyboard.press_and_release('ctrl+c')
-                        await asyncio.to_thread(TextToSpeech, "Link copied to clipboard")
-                    except Exception:
-                        await asyncio.to_thread(TextToSpeech, "Could not copy URL")
-                    # Navigate back
-                    try:
-                        keyboard.press_and_release('alt+left')
-                    except Exception:
-                        pass
-                    await asyncio.sleep(0.8)
-                    continue
-
-                await asyncio.sleep(0.2)
-
-                share = monitor.find_text("share")
-                if share:
-                    monitor.click_at(share['x'], share['y'])
-                    await asyncio.sleep(0.2)
-                    copy_item = monitor.find_text("copy link")
-                    if copy_item:
-                        monitor.click_at(copy_item['x'], copy_item['y'])
-                        await asyncio.to_thread(TextToSpeech, "Link copied to clipboard")
-                    else:
-                        await asyncio.to_thread(TextToSpeech, "Copy link option not found")
-                else:
-                    # Some UIs show 'Copy link' directly in the first menu
-                    copy_item = monitor.find_text("copy link")
-                    if copy_item:
-                        monitor.click_at(copy_item['x'], copy_item['y'])
-                        await asyncio.to_thread(TextToSpeech, "Link copied to clipboard")
-                    else:
-                        await asyncio.to_thread(TextToSpeech, "Share option not found")
-                continue
-            # Quick navigation commands on YouTube-like UIs
-            # Only trigger when explicitly asked to click
-            if "click on home" in norm or "click home" in norm:
-                item = monitor.find_text("Home")
-                if item:
-                    monitor.click_at(item['x'], item['y'])
-                    await asyncio.to_thread(TextToSpeech, "Home")
-                else:
-                    await asyncio.to_thread(TextToSpeech, "Home not found")
-                continue
-
-            if ("click on history" in norm or "click history" in norm
-                or "click on histry" in norm or "click histry" in norm):
-                item = monitor.find_text("History")
-                if item:
-                    monitor.click_at(item['x'], item['y'])
-                    await asyncio.to_thread(TextToSpeech, "History opened")
-                else:
-                    await asyncio.to_thread(TextToSpeech, "History not found")
-                continue
+                # (Corrupted duplicate 'relative 3-dot menu' block removed here; see the correct block above.)
 
             if ("click on watch later" in norm or "click watch later" in norm
                 or "click on watchlater" in norm or "click watchlater" in norm):
@@ -858,17 +919,7 @@ async def TranslateAndExecute(commands: list[str]):
             await asyncio.to_thread(TextToSpeech, "Screen-monitor: command not recognized")
             continue
 
-        if command.startswith("open "): # Handle "open" commands.
-
-            if "open it" in command: # Ignore "open it" command
-                pass
-            
-            if "open file" == command: # Ignore "open file" commands.
-                pass
-
-            else:
-                fun = asyncio.to_thread(OpenApp, command.removeprefix("open "))
-                funcs.append(fun)
+        # 'open' handled earlier to avoid interference with screen-monitor block
 
         elif command.startswith("general "): # Placeholder for general commands.
             pass

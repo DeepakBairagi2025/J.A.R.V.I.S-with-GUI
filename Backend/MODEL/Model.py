@@ -15,10 +15,23 @@ CohereAPIKey = env_vars.get("CohereAPIKey")
 co = cohere.Client(api_key=CohereAPIKey)
 
 # Define a list of recognized function keywords for task categorization.
+# Include canonical automation commands so they pass the initial filter.
 funcs = [
     "exit", "general", "realtime", "open", "close", "play",
     "generate image", "system", "content", "google search",
-    "youtube search ", "reminder",
+    "youtube search ", "reminder", "automation",
+    # Automation canonical intents
+    "add to watch later ",
+    "copy link for ",
+    "copy link ",
+    # Cursor/focus pointer intents
+    "focus on ",
+    "focus title ",
+    "cursor title ",
+    "cursor ",
+    "pointer title ",
+    "point to ",
+    "show pointer ",
 ]
 
 # Initialize an empty list to store user messages.
@@ -40,6 +53,7 @@ You will decide whether a query is a 'general' query, a 'realtime' query, or is 
 -> Respond with 'content (topic)' if a query is asking to write any type of content like application, codes, emails or anything else about a specific topic but if the query is asking to write multiple types of content, respond with 'content 1st topic, content 2nd topic' and so on.
 -> Respond with 'google search (topic)' if a query is asking to search a specific topic on google but if the query is asking to search multiple topics on google, respond with 'google search 1st topic, google search 2nd topic' and so on.
 -> Respond with 'youtube search (topic)' if a query is asking to search a specific topic on youtube but if the query is asking to search multiple topics on youtube, respond with 'youtube search 1st topic, youtube search 2nd topic' and so on.
+-> Respond with 'automation (command)' for any command that interacts with a user interface on the screen, such as 'add to watch later', 'copy link', 'focus on', 'click button', etc. For example: 'automation add to watch later my favorite video', 'automation copy link for the current video', 'automation focus on the search bar'.
 *** If the query is asking to perform multiple tasks like 'open facebook, telegram and close whatsapp' respond with 'open facebook, open telegram, close whatsapp' ***
 *** If the user is saying goodbye or wants to end the conversation like 'bye jarvis.' respond with 'exit'.***
 *** Respond with 'general (query)' if you can't decide the kind of query or if a query is asking to perform a task which is not mentioned above. ***
@@ -59,6 +73,12 @@ ChatHistory = [
     {"role": "Chatbot", "message": "general what is today's date, reminder 11:00pm 5th aug dancing performance."},
     {"role": "User", "message": "chat with me."},
     {"role": "Chatbot", "message": "general chat with me."},
+    {"role": "User", "message": "add to watch later the new spiderman trailer"},
+    {"role": "Chatbot", "message": "automation add to watch later the new spiderman trailer"},
+    {"role": "User", "message": "focus on the search bar"},
+    {"role": "Chatbot", "message": "automation focus on the search bar"},
+    {"role": "User", "message": "copy the link for this video"},
+    {"role": "Chatbot", "message": "automation copy link for this video"},
 ]
 
 # Define the main function for decision making on queries.
@@ -92,6 +112,31 @@ def FirstLayerDMM(prompt: str = "test"):
     # Strip leading and trailing whitespaces from each task.
     response = [i.strip() for i in response]
 
+    # Strong intent override based on the raw prompt to avoid misclassification
+    low_prompt = (prompt or "").lower().strip()
+    def tail_after(prefix: str) -> str:
+        return prompt[len(prefix):].strip()
+    if low_prompt.startswith("focus on "):
+        response = [f"focus on {tail_after('focus on ')}"]
+    elif low_prompt.startswith("focus title "):
+        response = [f"focus title {tail_after('focus title ')}"]
+    elif low_prompt.startswith("cursor title "):
+        response = [f"cursor title {tail_after('cursor title ')}"]
+    elif low_prompt.startswith("cursor "):
+        response = [f"cursor {tail_after('cursor ')}"]
+    elif low_prompt.startswith("point to "):
+        response = [f"point to {tail_after('point to ')}"]
+    elif low_prompt.startswith("show pointer "):
+        response = [f"show pointer {tail_after('show pointer ')}"]
+    elif low_prompt.startswith("add to watch later "):
+        response = [f"add to watch later {tail_after('add to watch later ')}"]
+    elif low_prompt.startswith("copy link for "):
+        response = [f"copy link for {tail_after('copy link for ')}"]
+    elif low_prompt.startswith("copy link "):
+        response = [f"copy link for {tail_after('copy link ')}"]
+    elif low_prompt.startswith("open "):
+        response = [f"open {tail_after('open ')}"]
+
     # Initialize an empty list to filter valid tasks.
     temp = []
 
@@ -104,54 +149,76 @@ def FirstLayerDMM(prompt: str = "test"):
     # Update the responsed with the filtered list of tasks.
     response = temp
 
-    # Post-process: normalize misclassified intents so automation handles them correctly.
-    # - 'realtime open ...'           -> 'open ...'
-    # - '(general|youtube search|realtime|content) add to watch later ...' -> 'add to watch later ...'
-    # - '(general|youtube search|realtime) copy link for ...'            -> 'copy link for ...'
-    # - '(general|youtube search|realtime) copy link ...' (no "for")     -> 'copy link for ...'
-    # - 'copy link ...' (no prefix, no "for")                            -> 'copy link for ...'
-    sanitized = []
-    for task in response:
-        # Normalize only for the prefix check; keep the rest of the string intact
+    # Lightweight normalization: strip misclassification prefixes for key automation commands
+    canonical_starts = (
+        "add to watch later ",
+        "copy link for ",
+        "copy link ",
+        "focus on ",
+        "focus title ",
+        "cursor title ",
+        "cursor ",
+        "pointer title ",
+        "point to ",
+        "show pointer ",
+        "open ",
+        "automation ",
+    )
+    def strip_prefix(task: str) -> str:
         low = task.lower()
-        if low.startswith("realtime open "):
-            tail = task[len("realtime open "):].strip()
-            task = f"open {tail}"
-        elif low.startswith("youtube search add to watch later "):
-            tail = task[len("youtube search add to watch later "):].strip()
-            task = f"add to watch later {tail}"
-        elif low.startswith("general add to watch later "):
-            tail = task[len("general add to watch later "):].strip()
-            task = f"add to watch later {tail}"
-        elif low.startswith("realtime add to watch later "):
-            tail = task[len("realtime add to watch later "):].strip()
-            task = f"add to watch later {tail}"
-        elif low.startswith("content add to watch later "):
-            tail = task[len("content add to watch later "):].strip()
-            task = f"add to watch later {tail}"
-        elif low.startswith("general copy link for "):
-            tail = task[len("general copy link for "):].strip()
-            task = f"copy link for {tail}"
-        elif low.startswith("youtube search copy link for "):
-            tail = task[len("youtube search copy link for "):].strip()
-            task = f"copy link for {tail}"
-        elif low.startswith("realtime copy link for "):
-            tail = task[len("realtime copy link for "):].strip()
-            task = f"copy link for {tail}"
-        elif low.startswith("general copy link "):
-            tail = task[len("general copy link "):].strip()
-            task = f"copy link for {tail}"
-        elif low.startswith("youtube search copy link "):
-            tail = task[len("youtube search copy link "):].strip()
-            task = f"copy link for {tail}"
-        elif low.startswith("realtime copy link "):
-            tail = task[len("realtime copy link "):].strip()
-            task = f"copy link for {tail}"
-        elif low.startswith("copy link ") and not low.startswith("copy link for "):
-            tail = task[len("copy link "):].strip()
-            task = f"copy link for {tail}"
-        sanitized.append(task)
-    response = sanitized
+        prefixes = (
+            "general ",
+            "youtube search ",
+            "google search ",
+            "realtime ",
+            "content ",
+        )
+        for p in prefixes:
+            if low.startswith(p):
+                tail = task[len(p):].strip()
+                low_tail = tail.lower()
+                # If tail already begins with a canonical command, keep it
+                if low_tail.startswith(canonical_starts):
+                    return tail
+                # If tail begins with 'automation ', keep it to allow downstream handling
+                if low_tail.startswith("automation "):
+                    return tail
+        return task
+
+    response = [strip_prefix(t) for t in response]
+    try:
+        print(f"[DMM] Final tasks: {response}")
+    except Exception:
+        pass
+
+    # De-duplicate conflicting commands: prefer high-level actions over 'open' for the same title
+    try:
+        action_titles = []
+        for t in response:
+            lowt = t.lower()
+            if lowt.startswith("add to watch later "):
+                action_titles.append(t[len("add to watch later "):].strip().lower())
+            elif lowt.startswith("copy link for "):
+                action_titles.append(t[len("copy link for "):].strip().lower())
+
+        def same_title(a: str, b: str) -> bool:
+            # Simple containment match both ways to be forgiving
+            a, b = a.lower().strip(), b.lower().strip()
+            return (a in b) or (b in a)
+
+        filtered = []
+        for t in response:
+            lowt = t.lower()
+            if lowt.startswith("open "):
+                tail = t[len("open "):].strip().lower()
+                if any(same_title(tail, at) for at in action_titles):
+                    # Skip opening when a higher-level action on the same title is present
+                    continue
+            filtered.append(t)
+        response = filtered
+    except Exception:
+        # In case of any unexpected parsing issue, keep the original response
+        pass
 
     # If '(query)' is in the response, recursively call the function for further clarification.
     if "(query)" in response:
