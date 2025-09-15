@@ -13,6 +13,7 @@ import keyboard # Import keyboard for simulating keyboard events.
 import asyncio # Import asyncio for asynchronous programming.
 import os # Import os for operating system interactions.
 from pathlib import Path # Import Path to resolve project root reliably.
+import json
 import re # Import re for normalizing/cleaning commands
 from Backend.TEXT_TO_SPEECH.TextToSpeech import TextToSpeech
 from .utils import extract_title_from_command
@@ -281,6 +282,50 @@ def OpenApp(app, sess=requests.session()):
         'azure': 'https://azure.microsoft.com',
         'gcp': 'https://cloud.google.com',
     }
+
+    # Merge with user-defined links from Data/WebLinks.json (non-breaking)
+    try:
+        data_dir = PROJECT_ROOT / "Data"
+        data_dir.mkdir(parents=True, exist_ok=True)
+        wl_path = data_dir / "WebLinks.json"
+        user_links = []
+        if wl_path.exists():
+            try:
+                with open(wl_path, 'r', encoding='utf-8') as f:
+                    user_links = json.load(f) or []
+                    if not isinstance(user_links, list):
+                        user_links = []
+            except Exception:
+                user_links = []
+        # If file missing or empty, seed from defaults (use simple names only)
+        if not user_links:
+            seed = []
+            seen = set()
+            for k, u in website_keywords.items():
+                # avoid duplicating dot-variants and duplicates
+                if '.' in k:
+                    continue
+                if k in seen:
+                    continue
+                seen.add(k)
+                seed.append({'name': k, 'url': u})
+            try:
+                with open(wl_path, 'w', encoding='utf-8') as f:
+                    json.dump(seed, f, ensure_ascii=False, indent=2)
+            except Exception:
+                pass
+            user_links = seed
+        # Merge user-defined names, overriding defaults if same key
+        for item in user_links:
+            try:
+                name = str(item.get('name', '')).strip().lower()
+                url  = str(item.get('url', '')).strip()
+                if name and (url.startswith('http://') or url.startswith('https://')):
+                    website_keywords[name] = url
+            except Exception:
+                continue
+    except Exception:
+        pass
     for kw, url in website_keywords.items():
         if kw in app_key:
             webopen(url)

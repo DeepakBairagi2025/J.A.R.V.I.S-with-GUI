@@ -1,4 +1,4 @@
-from PyQt5.QtWidgets import QApplication, QMainWindow, QTextEdit, QStackedWidget, QWidget,QLineEdit, QGridLayout, QVBoxLayout, QHBoxLayout, QPushButton, QFrame, QLabel, QSizePolicy
+from PyQt5.QtWidgets import QApplication, QMainWindow, QTextEdit, QStackedWidget, QWidget,QLineEdit, QGridLayout, QVBoxLayout, QHBoxLayout, QPushButton, QFrame, QLabel, QSizePolicy, QDialog, QScrollArea, QSpacerItem
 from PyQt5.QtGui import QIcon, QPainter, QColor, QMovie, QTextCharFormat, QFont, QPixmap, QTextBlockFormat
 from PyQt5.QtCore import Qt, QTimer, QSize
 from dotenv import dotenv_values
@@ -11,6 +11,7 @@ current_dir = os.getcwd()
 old_chat_message = ""
 TempDirPath = rf"{current_dir}\Frontend\Files"
 GraphicsDirPath = rf"{current_dir}\Frontend\Graphics"
+DataDirPath = rf"{current_dir}\Data"
 
 def AnswerModifier(Answer):
     lines = Answer.split('\n')
@@ -74,6 +75,87 @@ def ShowTextToScreen(Text):
     with open(rf'{TempDirPath}\Responses.data', "w", encoding="utf-8") as file:
         file.write(Text)
 
+# ------------- Web Links Persistence Helpers -------------
+def _links_file_path():
+    try:
+        os.makedirs(DataDirPath, exist_ok=True)
+    except Exception:
+        pass
+    return os.path.join(DataDirPath, 'WebLinks.json')
+
+def LoadWebLinks():
+    import json
+    path = _links_file_path()
+    if not os.path.exists(path):
+        try:
+            with open(path, 'w', encoding='utf-8') as f:
+                f.write('[]')
+        except Exception:
+            return []
+    try:
+        with open(path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+            if isinstance(data, list):
+                return data
+            return []
+    except Exception:
+        return []
+
+def SaveWebLinks(items: list):
+    import json
+    path = _links_file_path()
+    try:
+        with open(path, 'w', encoding='utf-8') as f:
+            json.dump(items, f, ensure_ascii=False, indent=2)
+        return True
+    except Exception:
+        return False
+
+# Resolve images whether they are kept at the project root or inside Frontend/Graphics
+def ResourcePath(filename: str) -> str:
+    root_path = os.path.join(current_dir, filename)
+    if os.path.exists(root_path):
+        return root_path
+    gfx_path = os.path.join(GraphicsDirPath, filename)
+    return gfx_path
+
+# Seed Data/WebLinks.json by parsing Backend/AUTOMATION/Automation.py website_keywords
+def SeedLinksFromAutomationIfEmpty():
+    items = LoadWebLinks()
+    if items:
+        return False
+    try:
+        auto_path = os.path.join(current_dir, 'Backend', 'AUTOMATION', 'Automation.py')
+        if not os.path.exists(auto_path):
+            return False
+        with open(auto_path, 'r', encoding='utf-8') as f:
+            src = f.read()
+        # Locate the website_keywords dict block
+        start = src.find('website_keywords = {')
+        if start == -1:
+            return False
+        end = src.find('\n    }', start)
+        if end == -1:
+            end = src.find('\n}', start)
+        block = src[start:end]
+        # Extract 'key': 'url' pairs with simple parsing
+        import re as _re
+        pairs = _re.findall(r"['\"]([^'\"]+)['\"]\s*:\s*['\"](https?://[^'\"]+)['\"]", block)
+        seen = set()
+        result = []
+        for k, u in pairs:
+            k_low = k.strip().lower()
+            if '.' in k_low or k_low in seen:
+                continue
+            seen.add(k_low)
+            result.append({'name': k_low, 'url': u})
+        if result:
+            SaveWebLinks(result)
+            return True
+    except Exception:
+        return False
+    return False
+
 class ChatSection(QWidget):
 
     def __init__(self):
@@ -131,6 +213,22 @@ class ChatSection(QWidget):
         font = QFont()
         font.setPointSize(13)
         self.chat_text_edit.setFont(font)
+        # One-time previous chat history load flag
+        self._history_loaded = False
+        # Ensure temp files exist to avoid first-run errors
+        try:
+            os.makedirs(TempDirPath, exist_ok=True)
+            resp_path = TempDirectoryPath('Responses.data')
+            if not os.path.exists(resp_path):
+                with open(resp_path, 'w', encoding='utf-8') as f:
+                    f.write("")
+            status_path = TempDirectoryPath('Status.data')
+            if not os.path.exists(status_path):
+                with open(status_path, 'w', encoding='utf-8') as f:
+                    f.write("")
+        except Exception:
+            pass
+
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.loadMessages)
         self.timer.timeout.connect(self.SpeechRecogText)
@@ -177,6 +275,38 @@ class ChatSection(QWidget):
     def loadMessages(self):
 
         global old_chat_message
+
+        # Lazy-load previous history once when the chat screen starts up
+        if not self._history_loaded:
+            self._history_loaded = True
+            try:
+                data_dir = os.path.join(current_dir, 'Data')
+                chatlog_path = os.path.join(data_dir, 'ChatLog.json')
+                if os.path.exists(chatlog_path):
+                    import json
+                    with open(chatlog_path, 'r', encoding='utf-8') as jf:
+                        logs = json.load(jf)
+                        # Render previous messages
+                        for item in logs:
+                            role = str(item.get('role', '')).lower().strip()
+                            content = str(item.get('content', '')).strip()
+                            if not content:
+                                continue
+                            # Color per role (user: cyan, assistant: white)
+                            if role == 'user':
+                                self.addMessage(message=f"You: {content}", color='Cyan')
+                            elif role == 'assistant':
+                                self.addMessage(message=f"{Assistantname or 'Assistant'}: {AnswerModifier(content)}", color='White')
+                            else:
+                                self.addMessage(message=content, color='White')
+                        # Set old_chat_message to the last line in Responses to avoid immediate duplicate append
+                        try:
+                            with open(TempDirectoryPath('Responses.data'), 'r', encoding='utf-8') as rf:
+                                old_chat_message = rf.read()
+                        except Exception:
+                            pass
+            except Exception:
+                pass
 
         with open(TempDirectoryPath('Responses.data'), "r", encoding='utf-8') as file:
             messages = file.read()
@@ -246,20 +376,35 @@ class InitialScreen(QWidget):
             gif_label.setAlignment(Qt.AlignCenter)
             movie.start()
             gif_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+            # Mic button (left of center)
             self.icon_label = QLabel()
-            pixmap = QPixmap(GraphicsDirectoryPath('Mic_on.png'))
-            new_pixmap = pixmap.scaled(60, 60)
-            self.icon_label.setPixmap(new_pixmap)
-            self.icon_label.setFixedSize(150, 150)
+            mic_pix = QPixmap(GraphicsDirectoryPath('Mic_on.png')).scaled(60, 60)
+            self.icon_label.setPixmap(mic_pix)
+            self.icon_label.setFixedSize(90, 90)
             self.icon_label.setAlignment(Qt.AlignCenter)
             self.toggled = True
             self.toggle_icon()
             self.icon_label.mousePressEvent = self.toggle_icon
+            # Web button (right of mic), opens pop menu
+            self.web_button = QPushButton()
+            self.web_button.setIcon(QIcon(ResourcePath('web.png')))
+            self.web_button.setIconSize(QSize(60, 60))
+            self.web_button.setFixedSize(90, 90)
+            self.web_button.setFlat(True)
+            self.web_button.setStyleSheet("border: none;")
+            self.web_button.clicked.connect(self.openWebLinksPopover)
             self.label = QLabel("")
             self.label.setStyleSheet("color: white; font-size:16px; margin-bottom:0;")
             content_layout.addWidget(gif_label, alignment=Qt.AlignCenter)
             content_layout.addWidget(self.label, alignment=Qt.AlignCenter)
-            content_layout.addWidget(self.icon_label, alignment=Qt.AlignCenter)
+            # Centered row with Mic and Web buttons, slight spacing, still centered
+            btn_row = QHBoxLayout()
+            btn_row.addStretch(1)
+            btn_row.addWidget(self.icon_label, alignment=Qt.AlignRight)
+            btn_row.addSpacing(20)
+            btn_row.addWidget(self.web_button, alignment=Qt.AlignLeft)
+            btn_row.addStretch(1)
+            content_layout.addLayout(btn_row)
             content_layout.setContentsMargins(0, 0, 0, 150)
             self.setLayout(content_layout)
             self.setFixedHeight(screen_height)
@@ -268,6 +413,11 @@ class InitialScreen(QWidget):
             self.timer = QTimer(self)
             self.timer.timeout.connect(self.SpeechRecogText)
             self.timer.start(5)
+
+        def openWebLinksPopover(self):
+            dlg = WebLinksManagerDialog(self)
+            dlg.setAttribute(Qt.WA_DeleteOnClose, True)
+            dlg.exec_()
 
         def SpeechRecogText(self):
             with open(TempDirectoryPath('Status.data'), "r", encoding='utf-8') as file:
@@ -445,5 +595,269 @@ def GraphicalUserInterface():
     window.show()
     sys.exit(app.exec_())
 
-if __name__ == '__main__':
-    GraphicalUserInterface()
+# ------------- Pop Menus: Web Links Manager, Add Link, Confirm Delete -------------
+class TitleBar(QWidget):
+    def __init__(self, parent_dialog: QDialog, title: str):
+        super().__init__(parent_dialog)
+        self.parent_dialog = parent_dialog
+        lay = QHBoxLayout(self)
+        lay.setContentsMargins(8, 6, 8, 6)
+        ttl = QLabel(title)
+        ttl.setStyleSheet("color: white; font-size: 16px;")
+        lay.addWidget(ttl)
+        lay.addStretch(1)
+        btn_min = QPushButton()
+        btn_min.setIcon(QIcon(ResourcePath('—Pngtree—minus vector icon_4015246.png')))
+        btn_min.setIconSize(QSize(16, 16))
+        btn_min.setFixedSize(28, 22)
+        # Make minimize button background white for visibility
+        btn_min.setStyleSheet("background: white; border: none;")
+        btn_min.clicked.connect(self.minimize)
+        btn_close = QPushButton()
+        btn_close.setIcon(QIcon(ResourcePath('Close.png')))
+        btn_close.setIconSize(QSize(16, 16))
+        btn_close.setFixedSize(28, 22)
+        btn_close.setStyleSheet("background: transparent; border: none;")
+        btn_close.clicked.connect(self.close)
+        lay.addWidget(btn_min)
+        lay.addWidget(btn_close)
+        self.setStyleSheet("background-color: black;")
+
+    def minimize(self):
+        self.parent_dialog.showMinimized()
+
+    def close(self):
+        self.parent_dialog.close()
+
+class WebLinksManagerDialog(QDialog):
+
+    def _hline(self):
+        l = QFrame()
+        l.setFrameShape(QFrame.HLine)
+        l.setFixedHeight(1)
+        l.setStyleSheet("background: white;")
+        return l
+
+    def _vline(self):
+        l = QFrame()
+        l.setFrameShape(QFrame.VLine)
+        l.setFixedWidth(1)
+        l.setStyleSheet("background: white;")
+        return l
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowFlags(Qt.Dialog | Qt.FramelessWindowHint)
+        self.setStyleSheet("background-color: black;")
+        self.resize(780, 520)
+        root = QVBoxLayout(self)
+        root.setContentsMargins(0, 0, 0, 0)
+        # Title bar
+        root.addWidget(TitleBar(self, "Web Links"))
+        # Header controls
+        header = QHBoxLayout()
+        add_btn = QPushButton("Add link")
+        add_btn.setStyleSheet("background: #FFD700; color: black; padding: 6px 12px; font-weight: bold;")
+        add_btn.clicked.connect(self.openAdd)
+        header.addWidget(add_btn)
+        header.addStretch(1)
+        root.addLayout(header)
+        # Column headers (no boxes, just separators like a table)
+        header_row = QHBoxLayout()
+        header_row.setContentsMargins(10, 6, 10, 6)
+        name_hdr = QLabel("Web name")
+        url_hdr  = QLabel("URL link")
+        name_hdr.setStyleSheet("color: #FF69B4; font-size: 20px;")
+        url_hdr.setStyleSheet("color: #32CD32; font-size: 20px;")
+        header_row.addWidget(name_hdr, 3)
+        header_row.addWidget(self._vline())
+        header_row.addWidget(url_hdr, 6)
+        header_row.addWidget(self._vline())
+        header_row.addWidget(QLabel(""), 1)
+        header_row.addWidget(self._vline())
+        header_row.addWidget(self._vline())
+        header_container = QVBoxLayout()
+        header_container.setContentsMargins(0,0,0,0)
+        top_widget = QWidget()
+        top_widget.setLayout(header_row)
+        header_container.addWidget(self._hline())
+        header_container.addWidget(top_widget)
+        header_container.addWidget(self._hline())
+        hc = QWidget()
+        hc.setLayout(header_container)
+        root.addWidget(hc)
+        # Scroll area list
+        self.scroll = QScrollArea()
+        self.scroll.setWidgetResizable(True)
+        self.list_container = QWidget()
+        self.list_layout = QVBoxLayout(self.list_container)
+        self.list_layout.setContentsMargins(0, 0, 0, 0)
+        self.list_layout.setSpacing(8)
+        self.scroll.setWidget(self.list_container)
+        root.addWidget(self.scroll)
+        # Ensure JSON seeded from Automation if empty
+        SeedLinksFromAutomationIfEmpty()
+        self.reload()
+
+    def reload(self):
+        # Clear existing rows
+        while self.list_layout.count():
+            item = self.list_layout.takeAt(0)
+            w = item.widget()
+            if w:
+                w.deleteLater()
+        links = LoadWebLinks()
+        if not links:
+            # Try again after seeding
+            if SeedLinksFromAutomationIfEmpty():
+                links = LoadWebLinks()
+            if not links:
+                empty = QLabel("No links yet")
+                empty.setStyleSheet("color: white;")
+                self.list_layout.addWidget(empty)
+                return
+        for it in links:
+            # Row content
+            row = QHBoxLayout()
+            row.setContentsMargins(10, 6, 10, 6)
+            name = str(it.get('name', '')).strip()
+            url = str(it.get('url', '')).strip()
+            name_lbl = QLabel(name)
+            name_lbl.setStyleSheet("color: #FF69B4; font-size: 18px;")
+            url_lbl = QLabel(url)
+            url_lbl.setStyleSheet("color: #32CD32; font-size: 18px;")
+            del_btn = QPushButton()
+            del_btn.setIcon(QIcon(ResourcePath('delete.png')))
+            del_btn.setIconSize(QSize(28, 28))
+            del_btn.setFixedSize(36, 32)
+            del_btn.setStyleSheet("border: none; background: transparent;")
+            del_btn.clicked.connect(lambda _, u=url: self.confirmDelete(u))
+
+            row.addWidget(name_lbl, 3)
+            row.addWidget(self._vline())
+            row.addWidget(url_lbl, 6)
+            row.addWidget(self._vline())
+            row.addWidget(del_btn, 1)
+            row.addWidget(self._vline())
+            row.addWidget(self._vline())
+
+            rc = QVBoxLayout()
+            rc.setContentsMargins(0,0,0,0)
+            rw = QWidget()
+            rw.setLayout(row)
+            rc.addWidget(rw)
+            rc.addWidget(self._hline())
+            rcontainer = QWidget()
+            rcontainer.setLayout(rc)
+            self.list_layout.addWidget(rcontainer)
+        self.list_layout.addStretch(1)
+
+    def openAdd(self):
+        dlg = AddLinkDialog(self)
+        dlg.setAttribute(Qt.WA_DeleteOnClose, True)
+        if dlg.exec_() == QDialog.Accepted:
+            self.reload()
+
+    def confirmDelete(self, url: str):
+        dlg = ConfirmDeleteDialog(url, self)
+        dlg.setAttribute(Qt.WA_DeleteOnClose, True)
+        if dlg.exec_() == QDialog.Accepted:
+            self.reload()
+
+class AddLinkDialog(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowFlags(Qt.Dialog | Qt.FramelessWindowHint)
+        self.setStyleSheet("background-color: black;")
+        self.resize(520, 260)
+        root = QVBoxLayout(self)
+        root.setContentsMargins(0, 0, 0, 0)
+        root.addWidget(TitleBar(self, "Add link"))
+        body = QVBoxLayout()
+        body.setContentsMargins(18, 12, 18, 12)
+        name_lbl = QLabel("Enter web name")
+        name_lbl.setStyleSheet("color: black;")
+        self.name_edit = QLineEdit()
+        self.name_edit.setPlaceholderText("Enter web name")
+        self.name_edit.setStyleSheet("color: black; border: 1px solid black; padding: 6px; background: white;")
+        url_lbl = QLabel("Enter URL")
+        url_lbl.setStyleSheet("color: black;")
+        self.url_edit = QLineEdit()
+        self.url_edit.setPlaceholderText("Enter URL")
+        self.url_edit.setStyleSheet("color: black; border: 1px solid black; padding: 6px; background: white;")
+        self.err_lbl = QLabel("")
+        self.err_lbl.setStyleSheet("color: #ff8080;")
+        btn_row = QHBoxLayout()
+        btn_row.addStretch(1)
+        save_btn = QPushButton("Save")
+        save_btn.setStyleSheet("background: #FF4D4D; color: white; padding: 6px 14px; font-weight: bold;")
+        save_btn.clicked.connect(self.onSave)
+        btn_row.addWidget(save_btn)
+        body.addWidget(name_lbl)
+        body.addWidget(self.name_edit)
+        body.addSpacing(6)
+        body.addWidget(url_lbl)
+        body.addWidget(self.url_edit)
+        body.addSpacing(8)
+        body.addWidget(self.err_lbl)
+        body.addLayout(btn_row)
+        root.addLayout(body)
+
+    def onSave(self):
+        name = (self.name_edit.text() or '').strip()
+        url = (self.url_edit.text() or '').strip()
+        if not name or not url:
+            self.err_lbl.setText("Please enter name and URL")
+            return
+        if not (url.startswith('http://') or url.startswith('https://')):
+            self.err_lbl.setText("URL must start with http:// or https://")
+            return
+        items = LoadWebLinks()
+        # unique name
+        for it in items:
+            if str(it.get('name', '')).strip().lower() == name.lower():
+                self.err_lbl.setText("Name already exists")
+                return
+        items.append({'name': name, 'url': url})
+        if SaveWebLinks(items):
+            self.accept()
+        else:
+            self.err_lbl.setText("Failed to save. Try again")
+
+class ConfirmDeleteDialog(QDialog):
+    def __init__(self, url: str, parent=None):
+        super().__init__(parent)
+        self.url = url
+        self.setWindowFlags(Qt.Dialog | Qt.FramelessWindowHint)
+        self.setStyleSheet("background-color: black;")
+        self.resize(520, 220)
+        root = QVBoxLayout(self)
+        root.setContentsMargins(0, 0, 0, 0)
+        root.addWidget(TitleBar(self, "Warning"))
+        body = QVBoxLayout()
+        body.setContentsMargins(18, 12, 18, 12)
+        msg = QLabel("Are you sure you want to delete this URL?")
+        msg.setStyleSheet("color: black; font-size: 14px;")
+        url_lbl = QLabel(url)
+        url_lbl.setStyleSheet("color: #32CD32; font-size: 13px;")  # green
+        btn_row = QHBoxLayout()
+        btn_row.addStretch(1)
+        del_btn = QPushButton("Delete")
+        del_btn.setStyleSheet("background: #FF4D4D; color: white; padding: 6px 14px; font-weight: bold;")
+        del_btn.clicked.connect(self.onDelete)
+        btn_row.addWidget(del_btn)
+        body.addWidget(msg)
+        body.addSpacing(6)
+        body.addWidget(url_lbl)
+        body.addSpacing(12)
+        body.addLayout(btn_row)
+        root.addLayout(body)
+
+    def onDelete(self):
+        items = LoadWebLinks()
+        new_items = [it for it in items if str(it.get('url', '')).strip() != self.url]
+        if SaveWebLinks(new_items):
+            self.accept()
+        else:
+            # leave dialog open; optional error label could be added
+            pass

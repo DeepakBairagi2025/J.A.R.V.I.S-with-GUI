@@ -32,7 +32,17 @@ Assistantname = env_vars.get("Assistantname")
 DefaultMessage = f'''{Username} : Hello {Assistantname}, How are you?
 {Assistantname} : Welcome {Username}. I am doing well. How may I help you?'''
 subprocesses = []
-Functions = ["open", "close", "play", "system", "content", "google search", "youtube search"]
+Functions = [
+    # Core app actions
+    "open", "close", "play", "system", "content",
+    # Search buckets (to preserve existing behavior)
+    "google search", "youtube search",
+    # Automation routing keywords
+    "automation",
+    # Screen UI automation prefixes (to ensure TranslateAndExecute runs)
+    "focus on", "focus title", "cursor", "pointer", "point to", "show pointer",
+    "add to watch later", "copy link for", "copy link",
+]
 
 def ShowDefaultChatIfNoChats():
     File = open(r'Data\ChatLog.json', "r", encoding='utf-8')

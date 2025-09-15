@@ -1,0 +1,486 @@
+[
+  {
+    "name": "instagram",
+    "url": "https://www.instagram.com/"
+  },
+  {
+    "name": "insta",
+    "url": "https://www.instagram.com/"
+  },
+  {
+    "name": "facebook",
+    "url": "https://www.facebook.com/"
+  },
+  {
+    "name": "fb",
+    "url": "https://www.facebook.com/"
+  },
+  {
+    "name": "youtube",
+    "url": "https://www.youtube.com/"
+  },
+  {
+    "name": "yt",
+    "url": "https://www.youtube.com/"
+  },
+  {
+    "name": "google",
+    "url": "https://www.google.com/"
+  },
+  {
+    "name": "g",
+    "url": "https://www.google.com/"
+  },
+  {
+    "name": "gmail",
+    "url": "https://mail.google.com/"
+  },
+  {
+    "name": "mail",
+    "url": "https://mail.google.com/"
+  },
+  {
+    "name": "whatsapp",
+    "url": "https://web.whatsapp.com/"
+  },
+  {
+    "name": "wh",
+    "url": "https://web.whatsapp.com/"
+  },
+  {
+    "name": "twitter",
+    "url": "https://twitter.com/"
+  },
+  {
+    "name": "tw",
+    "url": "https://twitter.com/"
+  },
+  {
+    "name": "linkedin",
+    "url": "https://www.linkedin.com/"
+  },
+  {
+    "name": "ln",
+    "url": "https://www.linkedin.com/"
+  },
+  {
+    "name": "telegram",
+    "url": "https://web.telegram.org/"
+  },
+  {
+    "name": "tg",
+    "url": "https://web.telegram.org/"
+  },
+  {
+    "name": "snapchat",
+    "url": "https://www.snapchat.com/"
+  },
+  {
+    "name": "snap",
+    "url": "https://www.snapchat.com/"
+  },
+  {
+    "name": "github",
+    "url": "https://github.com/"
+  },
+  {
+    "name": "git",
+    "url": "https://github.com/"
+  },
+  {
+    "name": "cohere",
+    "url": "https://cohere.com/"
+  },
+  {
+    "name": "co",
+    "url": "https://cohere.com/"
+  },
+  {
+    "name": "chatgpt",
+    "url": "https://chat.openai.com/"
+  },
+  {
+    "name": "aisaver",
+    "url": "https://aisaver.com/"
+  },
+  {
+    "name": "magichour",
+    "url": "https://magichour.com/"
+  },
+  {
+    "name": "stackoverflow",
+    "url": "https://stackoverflow.com"
+  },
+  {
+    "name": "reddit",
+    "url": "https://www.reddit.com"
+  },
+  {
+    "name": "wikipedia",
+    "url": "https://www.wikipedia.org"
+  },
+  {
+    "name": "quora",
+    "url": "https://www.quora.com"
+  },
+  {
+    "name": "amazon",
+    "url": "https://www.amazon.com"
+  },
+  {
+    "name": "flipkart",
+    "url": "https://www.flipkart.com"
+  },
+  {
+    "name": "snapdeal",
+    "url": "https://www.snapdeal.com"
+  },
+  {
+    "name": "myntra",
+    "url": "https://www.myntra.com"
+  },
+  {
+    "name": "udemy",
+    "url": "https://www.udemy.com"
+  },
+  {
+    "name": "coursera",
+    "url": "https://www.coursera.org"
+  },
+  {
+    "name": "edx",
+    "url": "https://www.edx.org"
+  },
+  {
+    "name": "khanacademy",
+    "url": "https://www.khanacademy.org"
+  },
+  {
+    "name": "medium",
+    "url": "https://medium.com"
+  },
+  {
+    "name": "netflix",
+    "url": "https://www.netflix.com"
+  },
+  {
+    "name": "hotstar",
+    "url": "https://www.hotstar.com"
+  },
+  {
+    "name": "primevideo",
+    "url": "https://www.primevideo.com"
+  },
+  {
+    "name": "zomato",
+    "url": "https://www.zomato.com"
+  },
+  {
+    "name": "swiggy",
+    "url": "https://www.swiggy.com"
+  },
+  {
+    "name": "canva",
+    "url": "https://www.canva.com"
+  },
+  {
+    "name": "notion",
+    "url": "https://www.notion.so"
+  },
+  {
+    "name": "yahoo",
+    "url": "https://www.yahoo.com"
+  },
+  {
+    "name": "duckduckgo",
+    "url": "https://www.duckduckgo.com"
+  },
+  {
+    "name": "bing",
+    "url": "https://www.bing.com"
+  },
+  {
+    "name": "zoho",
+    "url": "https://www.zoho.com"
+  },
+  {
+    "name": "pixabay",
+    "url": "https://www.pixabay.com"
+  },
+  {
+    "name": "pexels",
+    "url": "https://www.pexels.com"
+  },
+  {
+    "name": "unsplash",
+    "url": "https://www.unsplash.com"
+  },
+  {
+    "name": "wordpress",
+    "url": "https://www.wordpress.com"
+  },
+  {
+    "name": "blogger",
+    "url": "https://www.blogger.com"
+  },
+  {
+    "name": "tumblr",
+    "url": "https://www.tumblr.com"
+  },
+  {
+    "name": "trello",
+    "url": "https://www.trello.com"
+  },
+  {
+    "name": "dropbox",
+    "url": "https://www.dropbox.com"
+  },
+  {
+    "name": "drive",
+    "url": "https://drive.google.com"
+  },
+  {
+    "name": "skype",
+    "url": "https://www.skype.com"
+  },
+  {
+    "name": "zoom",
+    "url": "https://zoom.us"
+  },
+  {
+    "name": "meet",
+    "url": "https://meet.google.com"
+  },
+  {
+    "name": "figma",
+    "url": "https://www.figma.com"
+  },
+  {
+    "name": "codepen",
+    "url": "https://codepen.io"
+  },
+  {
+    "name": "replit",
+    "url": "https://replit.com"
+  },
+  {
+    "name": "w3schools",
+    "url": "https://www.w3schools.com"
+  },
+  {
+    "name": "geeksforgeeks",
+    "url": "https://www.geeksforgeeks.org"
+  },
+  {
+    "name": "tutorialspoint",
+    "url": "https://www.tutorialspoint.com"
+  },
+  {
+    "name": "udacity",
+    "url": "https://www.udacity.com"
+  },
+  {
+    "name": "futurelearn",
+    "url": "https://www.futurelearn.com"
+  },
+  {
+    "name": "javatpoint",
+    "url": "https://www.javatpoint.com"
+  },
+  {
+    "name": "crunchyroll",
+    "url": "https://www.crunchyroll.com"
+  },
+  {
+    "name": "openai",
+    "url": "https://www.openai.com"
+  },
+  {
+    "name": "codeacademy",
+    "url": "https://www.codecademy.com"
+  },
+  {
+    "name": "freecodecamp",
+    "url": "https://www.freecodecamp.org"
+  },
+  {
+    "name": "codeforces",
+    "url": "https://codeforces.com"
+  },
+  {
+    "name": "atcoder",
+    "url": "https://atcoder.jp"
+  },
+  {
+    "name": "leetcode",
+    "url": "https://leetcode.com"
+  },
+  {
+    "name": "hackerank",
+    "url": "https://www.hackerrank.com"
+  },
+  {
+    "name": "hackernews",
+    "url": "https://news.ycombinator.com"
+  },
+  {
+    "name": "producthunt",
+    "url": "https://www.producthunt.com"
+  },
+  {
+    "name": "techcrunch",
+    "url": "https://techcrunch.com"
+  },
+  {
+    "name": "thenextweb",
+    "url": "https://thenextweb.com"
+  },
+  {
+    "name": "wired",
+    "url": "https://www.wired.com"
+  },
+  {
+    "name": "cnn",
+    "url": "https://www.cnn.com"
+  },
+  {
+    "name": "bbc",
+    "url": "https://www.bbc.com"
+  },
+  {
+    "name": "ndtv",
+    "url": "https://www.ndtv.com"
+  },
+  {
+    "name": "indiatimes",
+    "url": "https://www.indiatimes.com"
+  },
+  {
+    "name": "moneycontrol",
+    "url": "https://www.moneycontrol.com"
+  },
+  {
+    "name": "groww",
+    "url": "https://www.groww.in"
+  },
+  {
+    "name": "zerodha",
+    "url": "https://www.zerodha.com"
+  },
+  {
+    "name": "coinmarketcap",
+    "url": "https://coinmarketcap.com"
+  },
+  {
+    "name": "tradingview",
+    "url": "https://www.tradingview.com"
+  },
+  {
+    "name": "spotify",
+    "url": "https://www.spotify.com"
+  },
+  {
+    "name": "soundcloud",
+    "url": "https://soundcloud.com"
+  },
+  {
+    "name": "gaana",
+    "url": "https://gaana.com"
+  },
+  {
+    "name": "wynk",
+    "url": "https://wynk.in"
+  },
+  {
+    "name": "jiosaavn",
+    "url": "https://www.jiosaavn.com"
+  },
+  {
+    "name": "discord",
+    "url": "https://discord.com"
+  },
+  {
+    "name": "tiktok",
+    "url": "https://www.tiktok.com"
+  },
+  {
+    "name": "glassdoor",
+    "url": "https://www.glassdoor.com"
+  },
+  {
+    "name": "naukri",
+    "url": "https://www.naukri.com"
+  },
+  {
+    "name": "indeed",
+    "url": "https://www.indeed.com"
+  },
+  {
+    "name": "monster",
+    "url": "https://www.monster.com"
+  },
+  {
+    "name": "internshala",
+    "url": "https://internshala.com"
+  },
+  {
+    "name": "timesjobs",
+    "url": "https://www.timesjobs.com"
+  },
+  {
+    "name": "freelancer",
+    "url": "https://www.freelancer.com"
+  },
+  {
+    "name": "fiverr",
+    "url": "https://www.fiverr.com"
+  },
+  {
+    "name": "upwork",
+    "url": "https://www.upwork.com"
+  },
+  {
+    "name": "behance",
+    "url": "https://www.behance.net"
+  },
+  {
+    "name": "dribbble",
+    "url": "https://dribbble.com"
+  },
+  {
+    "name": "envato",
+    "url": "https://www.envato.com"
+  },
+  {
+    "name": "themeforest",
+    "url": "https://themeforest.net"
+  },
+  {
+    "name": "githubpages",
+    "url": "https://pages.github.com"
+  },
+  {
+    "name": "netlify",
+    "url": "https://www.netlify.com"
+  },
+  {
+    "name": "vercel",
+    "url": "https://vercel.com"
+  },
+  {
+    "name": "cloudflare",
+    "url": "https://www.cloudflare.com"
+  },
+  {
+    "name": "aws",
+    "url": "https://aws.amazon.com"
+  },
+  {
+    "name": "azure",
+    "url": "https://azure.microsoft.com"
+  },
+  {
+    "name": "gcp",
+    "url": "https://cloud.google.com"
+  }
+]
