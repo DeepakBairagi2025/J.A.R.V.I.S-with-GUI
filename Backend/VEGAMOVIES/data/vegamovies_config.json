@@ -1,0 +1,56 @@
+{
+  "base_url": "https://vegamovies.menu",
+  "cache_settings": {
+    "current_date_movies_ttl": 21600,
+    "current_week_movies_ttl": 43200,
+    "search_results_ttl": 3600,
+    "max_cache_age_days": 7
+  },
+  "scraping_settings": {
+    "max_movies_per_page": 50,
+    "max_retries": 3,
+    "page_load_timeout": 10,
+    "popup_wait_time": 3,
+    "scroll_pause_time": 2
+  },
+  "ad_blocking": {
+    "enabled": true,
+    "css_injection": true,
+    "request_blocking": true,
+    "popup_monitoring": true
+  },
+  "browser_settings": {
+    "headless": false,
+    "window_size": "1920,1080",
+    "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "disable_images": false,
+    "disable_javascript": false
+  },
+  "extraction_selectors": {
+    "movie_containers": [
+      ".post-item",
+      ".movie-item", 
+      "article",
+      ".entry",
+      ".content-item"
+    ],
+    "title_selectors": [
+      "h2",
+      "h3", 
+      ".title",
+      ".movie-title",
+      ".post-title"
+    ],
+    "image_selectors": [
+      "img",
+      ".poster img",
+      ".thumbnail img"
+    ],
+    "date_selectors": [
+      ".release-date",
+      ".date",
+      ".published",
+      ".post-date"
+    ]
+  }
+}

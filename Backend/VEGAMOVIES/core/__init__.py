@@ -1,0 +1,1 @@
+# Core Vegamovies automation components
